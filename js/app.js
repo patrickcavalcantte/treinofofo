@@ -3,15 +3,20 @@ import {
   createStore, nextWorkoutKey, restWarning, newDraft, draftProgress,
   finishSession, evaluateSets, lastEntryFor, imageFor, displayName, parseReps, parseKg,
   startOfWeek, dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak, mergeStates, parseWeight, setWeight, weightLoggedThisWeek,
+  saveMed, removeMed, toggleDose, activeMeds, saveMeal, removeMeal, setMealStatus, activeMeals, importMeals,
 } from "./logic.js";
 import * as sync from "./sync.js";
 import { initChat } from "./chatui.js";
+import { esc } from "./dom.js";
+import { renderMedsView, renderDietView, healthNotices } from "./health.js";
 import { GOOGLE_LOGIN } from "./config.js";
 
 const app = document.getElementById("app");
 const store = createStore(safeLocalStorage());
 let state = store.load();
 let view = state.draft ? "workout" : "home";
+let editing = null; // { type: "med" | "meal", id } enquanto um formulário de remédio ou refeição está aberto
+const newId = () => (crypto.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`);
 let chosenKey = null; // permite trocar A/B manualmente na home
 
 function safeLocalStorage() {
@@ -24,7 +29,6 @@ function persist() {
   sync.schedulePush(state, (err) => console.warn("Não foi possível sincronizar agora.", err));
 }
 
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const img = (folder, n) => `assets/ex/${encodeURIComponent(folder)}/${n}.jpg`;
 const fmtDate = (iso) => new Date(iso).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
 const fmtKg = (kg) => (kg ?? "") === "" ? "" : String(kg).replace(".", ",");
@@ -69,10 +73,13 @@ function renderHome() {
 
     <div class="links">
       <button class="cta ghost" data-action="go" data-view="guide">Antes de começar</button>
+      <button class="cta ghost" data-action="go" data-view="meds">Remédios</button>
+      <button class="cta ghost" data-action="go" data-view="diet">Dieta</button>
       <button class="cta ghost" data-action="go" data-view="weight">Peso</button>
       <button class="cta ghost" data-action="go" data-view="history">Histórico</button>
     </div>
 
+    ${healthNotices(state, now)}
     ${sync.signedIn() ? `<p class="account small">Sincronizado como ${esc(sync.email())} · <button class="switch" data-action="signout">Sair</button></p>` : ""}
   `;
 }
@@ -443,6 +450,8 @@ function render() {
   else if (view === "guide") renderGuide();
   else if (view === "habit") renderHabit();
   else if (view === "weight") renderWeight();
+  else if (view === "meds") app.innerHTML = renderMedsView(state, new Date(), editing);
+  else if (view === "diet") app.innerHTML = renderDietView(state, new Date(), editing);
   else { view = "home"; renderHome(); }
 }
 
@@ -587,7 +596,42 @@ app.addEventListener("click", (e) => {
     case "switch":
       chosenKey = t.dataset.key; render();
       break;
+    case "dose": {
+      state = toggleDose(state, t.dataset.med, t.dataset.slot, dayKey(new Date()));
+      persist();
+      const y = window.scrollY; render(); window.scrollTo(0, y);
+      break;
+    }
+    case "meal": {
+      state = setMealStatus(state, t.dataset.id, dayKey(new Date()), t.dataset.status);
+      persist();
+      const y = window.scrollY; render(); window.scrollTo(0, y);
+      break;
+    }
+    case "med-new": editing = { type: "med", id: null }; render(); window.scrollTo(0, 0); break;
+    case "med-edit": editing = { type: "med", id: t.dataset.id }; render(); window.scrollTo(0, 0); break;
+    case "meal-new": editing = { type: "meal", id: null }; render(); window.scrollTo(0, 0); break;
+    case "meal-edit": editing = { type: "meal", id: t.dataset.id }; render(); window.scrollTo(0, 0); break;
+    case "med-cancel":
+    case "meal-cancel":
+      editing = null; render();
+      break;
+    case "med-delete": {
+      const med = activeMeds(state).find((m) => m.id === t.dataset.id);
+      if (med && confirm(`Apagar "${med.name}"? O histórico de doses dele deixa de contar na adesão.`)) {
+        state = removeMed(state, med.id, new Date()); persist(); render();
+      }
+      break;
+    }
+    case "meal-delete": {
+      const meal = activeMeals(state).find((m) => m.id === t.dataset.id);
+      if (meal && confirm(`Apagar "${meal.name}"?`)) {
+        state = removeMeal(state, meal.id, new Date()); persist(); render();
+      }
+      break;
+    }
     case "go":
+      editing = null;
       view = t.dataset.view; render(); window.scrollTo(0, 0);
       break;
     case "leave":
@@ -701,6 +745,50 @@ app.addEventListener("submit", async (e) => {
   } catch (err) {
     renderLogin(loginError(err), { email });
   }
+});
+
+app.addEventListener("submit", (e) => {
+  const form = e.target.closest("form[data-action='med-save'], form[data-action='meal-save']");
+  if (!form) return;
+  e.preventDefault();
+  const fd = new FormData(form);
+  const msg = form.querySelector(".login-msg");
+  try {
+    if (form.dataset.action === "med-save") {
+      state = saveMed(state, {
+        name: fd.get("name"), dose: fd.get("dose"), kind: fd.get("kind"),
+        times: fd.getAll("times"), every: { n: fd.get("n"), unit: fd.get("unit") },
+      }, editing?.id ?? newId(), new Date());
+    } else {
+      state = saveMeal(state, { name: fd.get("name"), text: fd.get("text") }, editing?.id ?? newId(), new Date());
+    }
+    persist();
+    editing = null;
+    render(); window.scrollTo(0, 0);
+  } catch (err) {
+    msg.textContent = err.message;
+  }
+});
+
+app.addEventListener("change", async (e) => {
+  if (e.target.dataset.action === "meal-import") {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const result = importMeals(state, JSON.parse(await file.text()), new Date(), newId);
+      state = result.state;
+      persist(); render();
+      alert(result.added ? `${result.added} refeições importadas.` : "Essas refeições já estavam cadastradas.");
+    } catch (err) {
+      alert(err instanceof SyntaxError ? "Esse arquivo não é um JSON válido." : err.message);
+    }
+    return;
+  }
+  if (e.target.name !== "kind") return;
+  const form = e.target.closest("form");
+  const interval = e.target.value === "interval";
+  form.querySelector(".kind-daily").hidden = interval;
+  form.querySelector(".kind-interval").hidden = !interval;
 });
 
 app.addEventListener("submit", (e) => {

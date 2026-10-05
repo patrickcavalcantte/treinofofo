@@ -525,3 +525,70 @@ h2.section { margin-top: 2rem; }
   .wm-fofo { font-size: 5.25rem; }
   .display { font-size: 3.5rem; }
 }
+
+/* ---------- Remédios e dieta ---------- */
+
+[hidden] { display: none !important; }
+h3.slot { font-family: var(--wide); font-stretch: 112%; font-size: 1rem; color: var(--muted); margin: 1.25rem 0 0.5rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.dose-list, .intervals, .manage { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem; }
+.dose {
+  width: 100%; display: flex; align-items: center; gap: 0.875rem; text-align: left;
+  background: var(--surface); border: 2px solid var(--line); border-radius: 1rem; padding: 0.875rem 1rem; cursor: pointer;
+}
+.dose-check { flex: none; width: 2.25rem; height: 2.25rem; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; color: transparent; }
+.dose[aria-pressed="true"] { border-color: var(--ok); }
+.dose[aria-pressed="true"] .dose-check { background: var(--ok); border-color: var(--ok); color: #fff; }
+
+.interval { background: var(--surface); border: 2px solid var(--line); border-radius: 1rem; padding: 1rem; display: grid; gap: 0.75rem; }
+.interval.perto { border-color: var(--plate); }
+.interval.atrasado { border-color: #C2342B; }
+.dose-btn { justify-self: start; background: var(--cobalt); color: var(--cobalt-ink); border: 0; border-radius: 999px; padding: 0.75rem 1.25rem; font-weight: 700; cursor: pointer; }
+.dose-btn[aria-pressed="true"] { background: transparent; color: var(--ok); border: 2px solid var(--ok); }
+
+.manage li { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; background: var(--surface); border-radius: 1rem; padding: 0.875rem 1rem; }
+.row-actions { display: flex; gap: 0.875rem; flex: none; }
+.row-actions .switch { margin: 0; }
+.switch.danger { color: #C2342B; }
+.manage + .cta, .dose-list + .cta { margin-top: 1rem; }
+
+.stats.two { grid-template-columns: repeat(2, 1fr); }
+
+.strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; background: var(--surface); border-radius: 1rem; padding: 0.75rem; margin-top: 0.75rem; }
+.strip-name { text-align: center; font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+.strip-cell { display: block; height: 1.75rem; border-radius: 6px; background: color-mix(in srgb, var(--ink) 8%, var(--surface)); }
+.strip-cell.full { background: var(--ok); }
+.strip-cell.part { background: var(--plate); }
+.strip-cell.miss { background: color-mix(in srgb, #C2342B 70%, var(--surface)); }
+.strip-cell.future { background: transparent; border: 1px dashed var(--line); }
+.strip-cell.today { outline: 2px solid var(--cobalt); outline-offset: 1px; }
+.strip-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 0.375rem 0.75rem; margin: 0.5rem 0 0; }
+.strip-legend .strip-cell { display: inline-block; width: 0.875rem; height: 0.875rem; border-radius: 4px; vertical-align: middle; }
+
+.meal { background: var(--surface); border-radius: 1rem; padding: 1rem; margin-top: 0.75rem; }
+.meal h3 { margin: 0; font-family: var(--wide); font-stretch: 112%; font-size: 1.125rem; }
+.meal-text { margin: 0.375rem 0 0; color: var(--muted); white-space: pre-wrap; }
+.meal-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 0.75rem; }
+.meal-btn { background: transparent; border: 2px solid var(--line); border-radius: 0.75rem; padding: 0.625rem 0.25rem; font-weight: 600; cursor: pointer; }
+.meal-btn[aria-pressed="true"].ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.meal-btn[aria-pressed="true"].parcial { background: var(--plate); border-color: var(--plate); color: #141B2D; }
+.meal-btn[aria-pressed="true"].fora { background: #C2342B; border-color: #C2342B; color: #fff; }
+
+.choice { border: 0; padding: 0; margin: 0 0 1rem; display: grid; gap: 0.5rem; }
+.choice legend { font-weight: 600; padding: 0; margin-bottom: 0.5rem; }
+.choice label { display: flex; align-items: center; gap: 0.625rem; }
+.choice input { width: 1.25rem; height: 1.25rem; accent-color: var(--cobalt); }
+.every { display: grid; grid-template-columns: 1fr 2fr; gap: 0.75rem; }
+.field-block select, .field-block textarea {
+  display: block; width: 100%; margin-top: 0.25rem; padding: 0.75rem; font-weight: 400;
+  border-radius: 0.625rem; border: 1.5px solid var(--line); background: var(--surface);
+}
+.field-block textarea { resize: vertical; }
+.med-form h2, .meal-form h2 { margin-bottom: 1rem; }
+.med-form .cta + .cta, .meal-form .cta + .cta { margin-top: 0.5rem; }
+.file-btn { text-align: center; cursor: pointer; margin-top: 0.5rem; }
+.file-btn:focus-within { outline: 3px solid var(--cobalt); outline-offset: 2px; }
+
+.meal-details { margin-top: 0.75rem; }
+.meal-details .meal-text { margin: 0.5rem 0 0; font-size: 0.9375rem; }
+.manage .meal-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

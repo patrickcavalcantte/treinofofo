@@ -5,7 +5,8 @@ export const STATE_VERSION = 1;
 export const STORAGE_KEY = "treino-casa:v1";
 
 export function emptyState() {
-  return { version: STATE_VERSION, history: [], levels: {}, draft: null, marks: [], weights: [] };
+  return { version: STATE_VERSION, history: [], levels: {}, draft: null, marks: [], weights: [],
+    meds: [], medLog: {}, meals: [], dietLog: {} };
 }
 
 // ---------- Datas ----------
@@ -255,6 +256,176 @@ export function weightLoggedThisWeek(state, now) {
   return (state.weights ?? []).some((w) => w.week === week);
 }
 
+// ---------- Remédios ----------
+
+export const SLOTS = ["Manhã", "Tarde", "Noite", "Ao deitar"];
+export const UNITS = { day: "dia", week: "semana", month: "mês" };
+
+const live = (list) => (list ?? []).filter((x) => !x.deleted);
+export const activeMeds = (state) => live(state.meds);
+export const activeMeals = (state) => live(state.meals);
+
+function normalizeEvery(every) {
+  const n = Number(every?.n);
+  if (!Number.isInteger(n) || n < 1 || n > 60 || !UNITS[every?.unit]) throw new Error("Informe o intervalo, por exemplo 3 meses.");
+  return { n, unit: every.unit };
+}
+
+/** Cria ou atualiza um remédio. `id` é novo no cadastro e existente na edição. */
+export function saveMed(state, data, id, now) {
+  const name = String(data.name ?? "").trim();
+  if (!name) throw new Error("Escreva o nome do remédio.");
+  const kind = data.kind === "interval" ? "interval" : "daily";
+  const times = kind === "daily" ? SLOTS.filter((s) => (data.times ?? []).includes(s)) : [];
+  if (kind === "daily" && !times.length) throw new Error("Escolha pelo menos um horário.");
+  const old = (state.meds ?? []).find((m) => m.id === id);
+  const med = {
+    id, name: name.slice(0, 80), dose: String(data.dose ?? "").trim().slice(0, 60), kind, times,
+    every: kind === "interval" ? normalizeEvery(data.every) : null,
+    createdAt: old?.createdAt ?? dayKey(now), updatedAt: new Date(now).toISOString(), deleted: false,
+  };
+  return { ...state, meds: [...(state.meds ?? []).filter((m) => m.id !== id), med] };
+}
+
+/** Apaga deixando um marcador, para a exclusão também valer nos outros aparelhos. */
+export function removeMed(state, id, now) {
+  return { ...state, meds: (state.meds ?? []).map((m) => m.id === id ? { ...m, deleted: true, updatedAt: new Date(now).toISOString() } : m) };
+}
+
+const doseKey = (medId, slot) => `${medId}|${slot}`;
+
+/** Liga ou desliga uma dose. Remédio de intervalo usa o horário "dose". */
+export function toggleDose(state, medId, slot, key) {
+  const day = { ...(state.medLog?.[key] ?? {}) };
+  day[doseKey(medId, slot)] = !day[doseKey(medId, slot)];
+  return { ...state, medLog: { ...(state.medLog ?? {}), [key]: day } };
+}
+
+export function addInterval(date, { n, unit }) {
+  const d = new Date(date); d.setHours(0, 0, 0, 0);
+  if (unit === "day") d.setDate(d.getDate() + n);
+  else if (unit === "week") d.setDate(d.getDate() + 7 * n);
+  else {
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + n);
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, last)); // 31/out + 1 mês = 30/nov, não 1/dez
+  }
+  return d;
+}
+
+/** Última dose, próxima dose e situação de um remédio de intervalo. */
+export function intervalStatus(state, med, now) {
+  const dates = Object.entries(state.medLog ?? {})
+    .filter(([, day]) => day[doseKey(med.id, "dose")] === true).map(([k]) => k).sort();
+  const last = dates[dates.length - 1] ?? null;
+  if (!last) return { last: null, next: null, daysLeft: null, status: "primeira" };
+  const next = addInterval(parseDayKey(last), med.every);
+  const daysLeft = calendarDaysBetween(now, next);
+  return { last, next: dayKey(next), daysLeft, status: daysLeft < 0 ? "atrasado" : daysLeft <= 7 ? "perto" : "ok" };
+}
+
+/** Doses de hoje dos remédios diários. */
+export function todayDoses(state, now) {
+  const key = dayKey(now);
+  const log = state.medLog?.[key] ?? {};
+  return activeMeds(state).filter((m) => m.kind === "daily")
+    .flatMap((m) => m.times.map((slot) => ({ med: m, slot, taken: log[doseKey(m.id, slot)] === true })));
+}
+
+/** Doses esperadas e tomadas em um dia (só remédios diários que já existiam naquele dia). */
+export function medDay(state, key) {
+  const log = state.medLog?.[key] ?? {};
+  let expected = 0, taken = 0;
+  for (const m of activeMeds(state)) {
+    if (m.kind !== "daily" || m.createdAt > key) continue;
+    for (const slot of m.times) { expected++; if (log[doseKey(m.id, slot)] === true) taken++; }
+  }
+  return { expected, taken };
+}
+
+function daysBack(now, n) {
+  return Array.from({ length: n }, (_, i) => { const d = new Date(now); d.setDate(d.getDate() - i); return dayKey(d); });
+}
+
+/** Adesão dos últimos `days` dias. Hoje só entra se já houver alguma marcação, porque o dia ainda não acabou. */
+export function medAdherence(state, now, days) {
+  const today = dayKey(now);
+  let expected = 0, taken = 0;
+  for (const key of daysBack(now, days)) {
+    const d = medDay(state, key);
+    if (key === today && d.taken === 0) continue;
+    expected += d.expected; taken += d.taken;
+  }
+  return { expected, taken, pct: expected ? Math.round((100 * taken) / expected) : null };
+}
+
+// ---------- Dieta ----------
+
+export const MEAL_STATUS = { ok: 1, parcial: 0.5, fora: 0 };
+
+export function saveMeal(state, data, id, now) {
+  const name = String(data.name ?? "").trim();
+  if (!name) throw new Error("Escreva o nome da refeição.");
+  const old = (state.meals ?? []).find((m) => m.id === id);
+  const meal = {
+    id, name: name.slice(0, 60), text: String(data.text ?? "").trim().slice(0, 2000),
+    order: old?.order ?? (state.meals ?? []).length,
+    createdAt: old?.createdAt ?? dayKey(now), updatedAt: new Date(now).toISOString(), deleted: false,
+  };
+  return { ...state, meals: [...(state.meals ?? []).filter((m) => m.id !== id), meal] };
+}
+
+/** Importa refeições de uma lista [{ name, text }]. Nomes que já existem são ignorados, então importar de novo não duplica. */
+export function importMeals(state, list, now, makeId) {
+  if (!Array.isArray(list) || !list.length) throw new Error("O arquivo precisa ser uma lista de refeições.");
+  let next = state;
+  const have = new Set(activeMeals(state).map((m) => m.name.toLowerCase()));
+  let added = 0;
+  for (const item of list) {
+    const name = String(item?.name ?? "").trim();
+    if (!name) throw new Error("Toda refeição precisa ter um nome.");
+    if (have.has(name.toLowerCase())) continue;
+    next = saveMeal(next, { name, text: item.text }, makeId(), now);
+    have.add(name.toLowerCase());
+    added++;
+  }
+  return { state: next, added };
+}
+
+export function removeMeal(state, id, now) {
+  return { ...state, meals: (state.meals ?? []).map((m) => m.id === id ? { ...m, deleted: true, updatedAt: new Date(now).toISOString() } : m) };
+}
+
+/** Marca a refeição do dia. Tocar no mesmo status de novo limpa a marcação. */
+export function setMealStatus(state, mealId, key, status) {
+  if (status !== null && !(status in MEAL_STATUS)) return state;
+  const day = { ...(state.dietLog?.[key] ?? {}) };
+  day[mealId] = day[mealId] === status ? null : status;
+  return { ...state, dietLog: { ...(state.dietLog ?? {}), [key]: day } };
+}
+
+/** Pontos de dieta de um dia: refeições esperadas e soma dos status. */
+export function dietDay(state, key) {
+  const log = state.dietLog?.[key] ?? {};
+  const meals = activeMeals(state).filter((m) => m.createdAt <= key);
+  const marked = meals.filter((m) => log[m.id]).length;
+  const score = meals.reduce((sum, m) => sum + (MEAL_STATUS[log[m.id]] ?? 0), 0);
+  return { expected: meals.length, marked, score };
+}
+
+export function dietAdherence(state, now, days) {
+  const today = dayKey(now);
+  let expected = 0, score = 0;
+  for (const key of daysBack(now, days)) {
+    const d = dietDay(state, key);
+    if (key === today && d.marked === 0) continue;
+    expected += d.expected; score += d.score;
+  }
+  return { expected, pct: expected ? Math.round((100 * score) / expected) : null };
+}
+
 // ---------- Sincronização ----------
 
 /**
@@ -262,6 +433,23 @@ export function weightLoggedThisWeek(state, now) {
  * histórico e marcações são a união; níveis e rascunho vêm do estado salvo mais recentemente.
  */
 /** Uma pesagem por semana; se os dois lados têm a mesma semana, vale a gravada por último. */
+/** Une listas por id; em cada item vale o mais recente (updatedAt). */
+function mergeById(a = [], b = []) {
+  const byId = new Map();
+  for (const x of [...b, ...a]) {
+    const cur = byId.get(x.id);
+    if (!cur || (x.updatedAt ?? "") >= (cur.updatedAt ?? "")) byId.set(x.id, x);
+  }
+  return [...byId.values()];
+}
+
+/** Une registros por dia; na mesma marcação vale o estado salvo mais recentemente. */
+function mergeLogs(older = {}, newer = {}) {
+  const out = {};
+  for (const day of new Set([...Object.keys(older), ...Object.keys(newer)])) out[day] = { ...older[day], ...newer[day] };
+  return out;
+}
+
 function mergeWeights(a = [], b = []) {
   const byWeek = new Map();
   for (const w of [...b, ...a]) {
@@ -281,6 +469,10 @@ export function mergeStates(a, b) {
     history: [...byDate.values()].sort((x, y) => x.date.localeCompare(y.date)),
     marks: [...new Set([...(a.marks ?? []), ...(b.marks ?? [])])].sort(),
     weights: mergeWeights(a.weights, b.weights),
+    meds: mergeById(a.meds, b.meds),
+    meals: mergeById(a.meals, b.meals),
+    medLog: mergeLogs(newer === a ? b.medLog : a.medLog, newer.medLog),
+    dietLog: mergeLogs(newer === a ? b.dietLog : a.dietLog, newer.dietLog),
   };
 }
 
