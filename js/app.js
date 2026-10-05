@@ -2,9 +2,10 @@ import { EXERCISES, WORKOUTS, REST_SECONDS, WEEKLY_GOAL, CARDIO } from "./data.j
 import {
   createStore, nextWorkoutKey, restWarning, newDraft, draftProgress,
   finishSession, evaluateSets, lastEntryFor, imageFor, displayName, parseReps, parseKg,
-  startOfWeek, dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak, mergeStates,
+  startOfWeek, dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak, mergeStates, parseWeight, setWeight, weightLoggedThisWeek,
 } from "./logic.js";
 import * as sync from "./sync.js";
+import { initChat } from "./chatui.js";
 import { GOOGLE_LOGIN } from "./config.js";
 
 const app = document.getElementById("app");
@@ -51,6 +52,7 @@ function renderHome() {
     </div>
 
     ${warning ? `<p class="notice">${esc(warning)}</p>` : ""}
+    ${weightLoggedThisWeek(state, now) ? "" : `<p class="notice">${now.getDay() === 1 ? "Hoje é dia de pesagem." : "A pesagem da semana ainda não foi feita."} Suba na balança de manhã, em jejum e depois de ir ao banheiro. <button class="switch" data-action="go" data-view="weight">Registrar peso</button></p>`}
 
     <button class="cta" data-action="start" data-key="${key}">Começar ${esc(w.title)}</button>
     <button class="switch" data-action="switch" data-key="${other}">Fazer o treino ${other} hoje</button>
@@ -67,6 +69,7 @@ function renderHome() {
 
     <div class="links">
       <button class="cta ghost" data-action="go" data-view="guide">Antes de começar</button>
+      <button class="cta ghost" data-action="go" data-view="weight">Peso</button>
       <button class="cta ghost" data-action="go" data-view="history">Histórico</button>
     </div>
 
@@ -353,6 +356,56 @@ function renderHabit() {
   `;
 }
 
+function renderWeightChart(entries) {
+  const W = 320, H = 150, pad = { l: 34, r: 10, t: 12, b: 22 };
+  const kgs = entries.map((e) => e.kg);
+  const lo = Math.floor(Math.min(...kgs) - 1), hi = Math.ceil(Math.max(...kgs) + 1);
+  const x = (i) => entries.length === 1 ? (pad.l + W - pad.r) / 2 : pad.l + (i * (W - pad.l - pad.r)) / (entries.length - 1);
+  const y = (v) => H - pad.b - ((v - lo) * (H - pad.t - pad.b)) / (hi - lo);
+  const pts = entries.map((e, i) => `${x(i).toFixed(1)},${y(e.kg).toFixed(1)}`).join(" ");
+  const short = (e) => new Date(e.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const alt = `Peso por semana: ${entries.map((e) => `${short(e)} ${fmtKg(e.kg)} kg`).join(", ")}.`;
+  return `
+    <svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(alt)}">
+      <text class="axis" x="${pad.l - 4}" y="${y(hi) + 3}" text-anchor="end">${hi}</text>
+      <text class="axis" x="${pad.l - 4}" y="${y(lo) + 3}" text-anchor="end">${lo}</text>
+      <line class="goal" x1="${pad.l}" x2="${W - pad.r}" y1="${y(lo)}" y2="${y(lo)}"/>
+      <polyline class="line" points="${pts}"/>
+      ${entries.map((e, i) => `<circle class="dot" cx="${x(i).toFixed(1)}" cy="${y(e.kg).toFixed(1)}" r="3.5"/>`).join("")}
+      <text class="axis" x="${x(0)}" y="${H - 6}" text-anchor="${entries.length === 1 ? "middle" : "start"}">${short(entries[0])}</text>
+      ${entries.length > 1 ? `<text class="axis" x="${x(entries.length - 1)}" y="${H - 6}" text-anchor="end">${short(entries[entries.length - 1])}</text>` : ""}
+    </svg>`;
+}
+
+function renderWeight(message = "", ok = false) {
+  const now = new Date();
+  const entries = state.weights ?? [];
+  const current = entries.find((w) => w.week === dayKey(startOfWeek(now)));
+  const rows = [...entries].reverse().map((w, i, arr) => {
+    const prev = arr[i + 1];
+    const diff = prev ? Math.round((w.kg - prev.kg) * 10) / 10 : null;
+    const d = diff === null ? "" : diff === 0 ? "igual" : `${diff > 0 ? "+" : "−"}${fmtKg(Math.abs(diff))} kg`;
+    return `<li><span>${esc(fmtDate(w.date + "T12:00:00"))}</span><strong>${fmtKg(w.kg)} kg</strong><span class="small">${d}</span></li>`;
+  }).join("");
+  app.innerHTML = `
+    <div class="bar"><button class="back" data-action="go" data-view="home">‹ Voltar</button><span></span></div>
+    <h1 class="display">Peso</h1>
+    <p class="lede">Pese uma vez por semana, de preferência na segunda de manhã, em jejum e depois de ir ao banheiro. Assim os números ficam comparáveis.</p>
+    <form class="login" data-action="weight" novalidate>
+      <label class="field-block">${current ? "Peso desta semana (pode corrigir)" : "Peso de hoje"}
+        <span class="pw">
+          <input name="kg" inputmode="decimal" autocomplete="off" placeholder="ex.: 68,4" value="${current ? fmtKg(current.kg) : ""}" required>
+          <span class="unit" aria-hidden="true">kg</span>
+        </span>
+      </label>
+      <p class="login-msg ${ok ? "ok" : ""}" role="status">${esc(message)}</p>
+      <button class="cta" type="submit">${current ? "Atualizar peso" : "Salvar peso"}</button>
+    </form>
+    ${entries.length ? `<h2 class="section">Evolução</h2>${renderWeightChart(entries)}
+    <ul class="weights">${rows}</ul>` : `<p class="small" style="margin-top:1.5rem">Nenhum peso registrado ainda. O primeiro aparece aqui.</p>`}
+  `;
+}
+
 function renderGuide() {
   app.innerHTML = `
     <div class="bar"><button class="back" data-action="go" data-view="home">‹ Voltar</button><span></span></div>
@@ -389,6 +442,7 @@ function render() {
   else if (view === "history") renderHistory();
   else if (view === "guide") renderGuide();
   else if (view === "habit") renderHabit();
+  else if (view === "weight") renderWeight();
   else { view = "home"; renderHome(); }
 }
 
@@ -399,7 +453,50 @@ const restTime = document.getElementById("rest-time");
 let restEnd = 0;
 let restTick = null;
 
+// Aviso sonoro: o navegador só libera áudio depois de um toque, então o contexto nasce no toque que inicia o descanso.
+let audioCtx = null;
+let soundOn = (() => { try { return localStorage.getItem("treino-casa:som") !== "off"; } catch { return true; } })();
+
+function unlockAudio() {
+  try {
+    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx.resume?.();
+  } catch { /* sem áudio: segue só com a vibração */ }
+}
+
+function beep() {
+  if (!soundOn || !audioCtx) return;
+  [0, 0.3, 0.6].forEach((delay, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = i === 2 ? 1175 : 880;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const t0 = audioCtx.currentTime + delay;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.4, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+    osc.start(t0);
+    osc.stop(t0 + 0.25);
+  });
+}
+
+const soundBtn = document.getElementById("rest-sound");
+function paintSound() {
+  soundBtn.textContent = soundOn ? "🔔" : "🔕";
+  soundBtn.setAttribute("aria-pressed", String(soundOn));
+  soundBtn.setAttribute("aria-label", soundOn ? "Som do descanso ligado" : "Som do descanso desligado");
+}
+soundBtn.addEventListener("click", () => {
+  soundOn = !soundOn;
+  try { localStorage.setItem("treino-casa:som", soundOn ? "on" : "off"); } catch { /* sem storage: vale só nesta sessão */ }
+  if (soundOn) { unlockAudio(); beep(); }
+  paintSound();
+});
+paintSound();
+
 function startRest(seconds = REST_SECONDS) {
+  unlockAudio();
   restEnd = Date.now() + seconds * 1000; // baseado em relógio, não em contagem, para sobreviver a aba em segundo plano
   restEl.hidden = false;
   restEl.classList.remove("done");
@@ -416,6 +513,7 @@ function tickRest() {
     restEl.classList.add("done");
     restTime.textContent = "Bora";
     navigator.vibrate?.([200, 100, 200]);
+    beep();
     setTimeout(stopRest, 4000);
   }
 }
@@ -605,6 +703,17 @@ app.addEventListener("submit", async (e) => {
   }
 });
 
+app.addEventListener("submit", (e) => {
+  const form = e.target.closest("form[data-action='weight']");
+  if (!form) return;
+  e.preventDefault();
+  const kg = parseWeight(new FormData(form).get("kg"));
+  if (kg === null) return renderWeight("Digite o peso em kg, por exemplo 68,4.");
+  state = setWeight(state, kg, new Date());
+  persist();
+  renderWeight("Peso salvo.", true);
+});
+
 app.addEventListener("submit", async (e) => {
   const form = e.target.closest("form[data-action]");
   const kind = form?.dataset.action;
@@ -650,4 +759,14 @@ async function boot() {
     console.warn("Sem conexão com o servidor. O app segue com os dados deste aparelho.", err);
   }
 }
+initChat(() => {
+  const now = new Date();
+  return {
+    done: weeklyCounts(state, now, 1)[0].count,
+    goal: WEEKLY_GOAL,
+    streak: weekStreak(state, now),
+    weightDue: !weightLoggedThisWeek(state, now),
+  };
+});
+
 boot();

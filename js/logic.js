@@ -5,7 +5,7 @@ export const STATE_VERSION = 1;
 export const STORAGE_KEY = "treino-casa:v1";
 
 export function emptyState() {
-  return { version: STATE_VERSION, history: [], levels: {}, draft: null, marks: [] };
+  return { version: STATE_VERSION, history: [], levels: {}, draft: null, marks: [], weights: [] };
 }
 
 // ---------- Datas ----------
@@ -225,12 +225,52 @@ export function weekStreak(state, now, goal = WEEKLY_GOAL) {
   return streak;
 }
 
+// ---------- Peso ----------
+
+/** Chave da semana (a segunda-feira dela). A pesagem é uma por semana. */
+export function weekKey(date) {
+  return dayKey(startOfWeek(date));
+}
+
+export function parseWeight(value) {
+  if (value === null || value === undefined) return null;
+  const s = String(value).trim().replace(",", ".");
+  if (!/^\d{2,3}(\.\d{1,2})?$/.test(s)) return null;
+  const n = Number(s);
+  if (n < 20 || n > 400) return null;
+  return Math.round(n * 10) / 10;
+}
+
+/** Grava o peso da semana de `now`. Pesar de novo na mesma semana substitui o valor. */
+export function setWeight(state, kg, now) {
+  const week = weekKey(now);
+  const entry = { week, date: dayKey(now), kg, at: new Date(now).toISOString() };
+  const weights = [...(state.weights ?? []).filter((w) => w.week !== week), entry]
+    .sort((a, b) => a.week.localeCompare(b.week));
+  return { ...state, weights };
+}
+
+export function weightLoggedThisWeek(state, now) {
+  const week = weekKey(now);
+  return (state.weights ?? []).some((w) => w.week === week);
+}
+
 // ---------- Sincronização ----------
 
 /**
  * Junta o estado local com o remoto sem perder treino de nenhum lado:
  * histórico e marcações são a união; níveis e rascunho vêm do estado salvo mais recentemente.
  */
+/** Uma pesagem por semana; se os dois lados têm a mesma semana, vale a gravada por último. */
+function mergeWeights(a = [], b = []) {
+  const byWeek = new Map();
+  for (const w of [...b, ...a]) {
+    const cur = byWeek.get(w.week);
+    if (!cur || w.at >= cur.at) byWeek.set(w.week, w);
+  }
+  return [...byWeek.values()].sort((x, y) => x.week.localeCompare(y.week));
+}
+
 export function mergeStates(a, b) {
   if (!b) return a;
   const newer = (a.savedAt ?? "") >= (b.savedAt ?? "") ? a : b;
@@ -240,6 +280,7 @@ export function mergeStates(a, b) {
     ...newer,
     history: [...byDate.values()].sort((x, y) => x.date.localeCompare(y.date)),
     marks: [...new Set([...(a.marks ?? []), ...(b.marks ?? [])])].sort(),
+    weights: mergeWeights(a.weights, b.weights),
   };
 }
 

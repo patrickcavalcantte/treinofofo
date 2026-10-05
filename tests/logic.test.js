@@ -1,9 +1,9 @@
-﻿import { test, describe } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   startOfWeek, sessionsThisWeek, nextWorkoutKey, restWarning, parseReps, parseKg,
   evaluateSets, finishSession, newDraft, createStore, emptyState, lastEntryFor, STORAGE_KEY,
-  dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak, mergeStates,
+  dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak, mergeStates, weekKey, parseWeight, setWeight, weightLoggedThisWeek,
 } from "../js/logic.js";
 
 const sets = (...reps) => reps.map((r) => ({ reps: r, kg: 4, done: true }));
@@ -243,5 +243,44 @@ describe("mergeStates", () => {
     const legacy = mk({ levels: { push: 1 } });
     const fresh = mk({ savedAt: "2026-10-05T10:00:00Z", levels: { push: 3 } });
     assert.deepEqual(mergeStates(legacy, fresh).levels, { push: 3 });
+  });
+});
+
+describe("peso", () => {
+  test("parseWeight aceita vírgula e arredonda para 0,1", () => {
+    assert.equal(parseWeight("72,46"), 72.5);
+    assert.equal(parseWeight(" 68.3 "), 68.3);
+    assert.equal(parseWeight("100"), 100);
+  });
+
+  test("parseWeight recusa valor inválido ou fora da faixa", () => {
+    for (const bad of ["", "abc", "7", "19,9", "401", "72,555", null, undefined]) assert.equal(parseWeight(bad), null, String(bad));
+  });
+
+  test("weekKey é a segunda-feira da semana", () => {
+    assert.equal(weekKey(day(10)), "2026-10-05");
+    assert.equal(weekKey(day(5)), "2026-10-05");
+    assert.equal(weekKey(day(4)), "2026-09-28");
+  });
+
+  test("setWeight guarda uma pesagem por semana e substitui", () => {
+    let s = setWeight(emptyState(), 70, day(5, 7));
+    s = setWeight(s, 69.4, day(7, 7));
+    s = setWeight(s, 68.9, day(12, 7));
+    assert.deepEqual(s.weights.map((w) => [w.week, w.kg]), [["2026-10-05", 69.4], ["2026-10-12", 68.9]]);
+  });
+
+  test("weightLoggedThisWeek", () => {
+    const s = setWeight(emptyState(), 70, day(5, 7));
+    assert.equal(weightLoggedThisWeek(s, day(9)), true);
+    assert.equal(weightLoggedThisWeek(s, day(12)), false);
+    assert.equal(weightLoggedThisWeek(emptyState(), day(5)), false);
+  });
+
+  test("mergeStates une pesagens; na mesma semana vale a mais recente", () => {
+    const a = { ...setWeight(emptyState(), 70, day(5, 7)), savedAt: "2026-10-05T10:00:00Z" };
+    const b = { ...setWeight(setWeight(emptyState(), 71, day(5, 6)), 69, day(12, 7)), savedAt: "2026-10-12T10:00:00Z" };
+    const m = mergeStates(a, b);
+    assert.deepEqual(m.weights.map((w) => [w.week, w.kg]), [["2026-10-05", 70], ["2026-10-12", 69]]);
   });
 });
