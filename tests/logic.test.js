@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   startOfWeek, sessionsThisWeek, nextWorkoutKey, restWarning, parseReps, parseKg,
   evaluateSets, finishSession, newDraft, createStore, emptyState, lastEntryFor, STORAGE_KEY,
-  dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak,
+  dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak, mergeStates,
 } from "../js/logic.js";
 
 const sets = (...reps) => reps.map((r) => ({ reps: r, kg: 4, done: true }));
@@ -213,3 +213,35 @@ describe("hábito", () => {
   });
 });
 
+
+describe("mergeStates", () => {
+  const sess = (iso) => ({ workout: "A", date: iso, entries: {} });
+  const mk = (over) => ({ ...emptyState(), ...over });
+
+  test("sem estado remoto, devolve o local", () => {
+    const local = mk({ savedAt: "2026-10-05T10:00:00Z" });
+    assert.equal(mergeStates(local, null), local);
+  });
+
+  test("histórico é a união dos dois lados, sem duplicar e em ordem", () => {
+    const a = mk({ savedAt: "2026-10-05T10:00:00Z", history: [sess("2026-10-02T10:00:00Z"), sess("2026-10-05T10:00:00Z")] });
+    const b = mk({ savedAt: "2026-10-03T10:00:00Z", history: [sess("2026-10-02T10:00:00Z"), sess("2026-10-03T10:00:00Z")] });
+    assert.deepEqual(mergeStates(a, b).history.map((s) => s.date),
+      ["2026-10-02T10:00:00Z", "2026-10-03T10:00:00Z", "2026-10-05T10:00:00Z"]);
+  });
+
+  test("marcações são unidas; níveis e rascunho vêm do mais recente", () => {
+    const a = mk({ savedAt: "2026-10-05T10:00:00Z", marks: ["2026-10-01"], levels: { push: 2 }, draft: null });
+    const b = mk({ savedAt: "2026-10-04T10:00:00Z", marks: ["2026-10-03"], levels: { push: 0 }, draft: { workout: "B" } });
+    const m = mergeStates(a, b);
+    assert.deepEqual(m.marks, ["2026-10-01", "2026-10-03"]);
+    assert.deepEqual(m.levels, { push: 2 });
+    assert.equal(m.draft, null);
+  });
+
+  test("estado antigo sem savedAt perde para o que tem", () => {
+    const legacy = mk({ levels: { push: 1 } });
+    const fresh = mk({ savedAt: "2026-10-05T10:00:00Z", levels: { push: 3 } });
+    assert.deepEqual(mergeStates(legacy, fresh).levels, { push: 3 });
+  });
+});

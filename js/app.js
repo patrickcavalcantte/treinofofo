@@ -2,8 +2,10 @@ import { EXERCISES, WORKOUTS, REST_SECONDS, WEEKLY_GOAL, CARDIO } from "./data.j
 import {
   createStore, nextWorkoutKey, restWarning, newDraft, draftProgress,
   finishSession, evaluateSets, lastEntryFor, imageFor, displayName, parseReps, parseKg,
-  startOfWeek, dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak,
+  startOfWeek, dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak, mergeStates,
 } from "./logic.js";
+import * as sync from "./sync.js";
+import { GOOGLE_LOGIN } from "./config.js";
 
 const app = document.getElementById("app");
 const store = createStore(safeLocalStorage());
@@ -16,7 +18,9 @@ function safeLocalStorage() {
 }
 
 function persist() {
+  state = { ...state, savedAt: new Date().toISOString() };
   if (!store.save(state)) console.warn("Não foi possível salvar. O progresso fica só nesta aba.");
+  sync.schedulePush(state, (err) => console.warn("Não foi possível sincronizar agora.", err));
 }
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -65,6 +69,28 @@ function renderHome() {
       <button class="cta ghost" data-action="go" data-view="guide">Antes de começar</button>
       <button class="cta ghost" data-action="go" data-view="history">Histórico</button>
     </div>
+
+    ${sync.signedIn() ? `<p class="account small">Sincronizado como ${esc(sync.email())} · <button class="switch" data-action="signout">Sair</button></p>` : ""}
+  `;
+}
+
+function renderLogin(message = "") {
+  app.innerHTML = `
+    <h1 class="display">Entrar</h1>
+    <p class="lede">Entre com a sua conta para o progresso aparecer igual no celular e no computador.</p>
+    ${GOOGLE_LOGIN ? `<button class="cta google" type="button" data-action="google">Entrar com Google</button>
+    <p class="or small">ou com e-mail e senha</p>` : ""}
+    <form class="login" data-action="login" novalidate>
+      <label class="field-block">E-mail
+        <input name="email" type="email" autocomplete="email" inputmode="email" required>
+      </label>
+      <label class="field-block">Senha
+        <input name="password" type="password" autocomplete="current-password" minlength="8" required>
+      </label>
+      <p class="login-msg" role="status">${esc(message)}</p>
+      <button class="cta" type="submit" name="mode" value="signin">Entrar</button>
+      <button class="cta ghost" type="submit" name="mode" value="signup">Criar conta</button>
+    </form>
   `;
 }
 
@@ -285,7 +311,8 @@ function renderGuide() {
 }
 
 function render() {
-  if (view === "workout" && state.draft) renderWorkout();
+  if (view === "login") renderLogin();
+  else if (view === "workout" && state.draft) renderWorkout();
   else if (view === "history") renderHistory();
   else if (view === "guide") renderGuide();
   else if (view === "habit") renderHabit();
@@ -359,6 +386,12 @@ app.addEventListener("click", (e) => {
       state.draft.cardio = !state.draft.cardio;
       persist();
       { const y = window.scrollY; render(); window.scrollTo(0, y); }
+      break;
+    case "google":
+      sync.signInWithGoogle().catch((err) => renderLogin(err.message));
+      break;
+    case "signout":
+      sync.signOut().finally(() => { view = "login"; render(); });
       break;
     case "mark":
       state = toggleMark(state, t.dataset.day);
@@ -441,5 +474,61 @@ app.addEventListener("change", (e) => {
   }
 });
 
-render();
-if (view === "workout") keepAwake(true);
+// ---------- Conta e sincronização ----------
+
+// Junta o que está neste aparelho com o que está no Supabase e grava o resultado nos dois lados.
+async function reconcile() {
+  try {
+    const remote = await sync.pull();
+    const merged = mergeStates(state, remote);
+    const changedHere = JSON.stringify(merged) !== JSON.stringify(state);
+    state = merged;
+    if (changedHere) store.save(state);
+    if (!remote || JSON.stringify(merged) !== JSON.stringify(remote)) await sync.push(state);
+    if (view === "workout" && !state.draft) view = "home";
+    if (changedHere && view !== "login") render();
+  } catch (err) {
+    console.warn("Não foi possível sincronizar agora. O app segue com os dados deste aparelho.", err);
+  }
+}
+
+app.addEventListener("submit", async (e) => {
+  const form = e.target.closest("form[data-action='login']");
+  if (!form) return;
+  e.preventDefault();
+  const mode = e.submitter?.value ?? "signin";
+  const data = new FormData(form);
+  const email = String(data.get("email")).trim();
+  const password = String(data.get("password"));
+  if (!email || password.length < 8) return renderLogin("Informe o e-mail e uma senha de pelo menos 8 caracteres.");
+  try {
+    if (mode === "signup") {
+      const needsConfirmation = await sync.signUp(email, password);
+      if (needsConfirmation) return renderLogin("Conta criada. Confirme pelo e-mail que enviamos e depois toque em Entrar.");
+    } else {
+      await sync.signIn(email, password);
+    }
+    view = state.draft ? "workout" : "home";
+    await reconcile();
+    render();
+  } catch (err) {
+    renderLogin(err.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : err.message);
+  }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && sync.signedIn() && view !== "workout") reconcile();
+});
+
+async function boot() {
+  render();
+  if (view === "workout") keepAwake(true);
+  if (!sync.enabled) return;
+  try {
+    if (await sync.start()) { await reconcile(); render(); }
+    else { view = "login"; render(); }
+  } catch (err) {
+    console.warn("Sem conexão com o servidor. O app segue com os dados deste aparelho.", err);
+  }
+}
+boot();

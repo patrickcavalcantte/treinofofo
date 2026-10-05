@@ -225,6 +225,24 @@ export function weekStreak(state, now, goal = WEEKLY_GOAL) {
   return streak;
 }
 
+// ---------- Sincronização ----------
+
+/**
+ * Junta o estado local com o remoto sem perder treino de nenhum lado:
+ * histórico e marcações são a união; níveis e rascunho vêm do estado salvo mais recentemente.
+ */
+export function mergeStates(a, b) {
+  if (!b) return a;
+  const newer = (a.savedAt ?? "") >= (b.savedAt ?? "") ? a : b;
+  const byDate = new Map();
+  for (const s of [...b.history, ...a.history]) byDate.set(s.date, s);
+  return {
+    ...newer,
+    history: [...byDate.values()].sort((x, y) => x.date.localeCompare(y.date)),
+    marks: [...new Set([...(a.marks ?? []), ...(b.marks ?? [])])].sort(),
+  };
+}
+
 // ---------- Persistência ----------
 
 function isValidState(s) {
