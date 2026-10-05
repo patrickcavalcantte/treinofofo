@@ -74,7 +74,18 @@ function renderHome() {
   `;
 }
 
-function renderLogin(message = "") {
+function renderLogin(message = "", { email = "", sent = false } = {}) {
+  if (sent) {
+    app.innerHTML = `
+      <h1 class="display">Confira seu e-mail</h1>
+      <div class="sent" role="status">
+        <p><strong>Enviamos um e-mail para ${esc(email)}.</strong></p>
+        <p>Abra a mensagem e clique no link para ativar a conta. Se não achar, olhe o spam ou a aba Promoções.</p>
+      </div>
+      <button class="cta" type="button" data-action="relogin" data-email="${esc(email)}">Já confirmei, entrar</button>
+    `;
+    return;
+  }
   app.innerHTML = `
     <h1 class="display">Entrar</h1>
     <p class="lede">Entre com a sua conta para o progresso aparecer igual no celular e no computador.</p>
@@ -82,16 +93,32 @@ function renderLogin(message = "") {
     <p class="or small">ou com e-mail e senha</p>` : ""}
     <form class="login" data-action="login" novalidate>
       <label class="field-block">E-mail
-        <input name="email" type="email" autocomplete="email" inputmode="email" required>
+        <input name="email" type="email" autocomplete="email" inputmode="email" value="${esc(email)}" required>
       </label>
       <label class="field-block">Senha
-        <input name="password" type="password" autocomplete="current-password" minlength="8" required>
+        <span class="pw">
+          <input name="password" type="password" autocomplete="current-password" minlength="8" required>
+          <button type="button" class="pw-toggle" data-action="togglepw" aria-pressed="false" aria-label="Mostrar senha">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>
+              <line class="pw-slash" x1="3" y1="3" x2="21" y2="21"/>
+            </svg>
+          </button>
+        </span>
       </label>
       <p class="login-msg" role="status">${esc(message)}</p>
       <button class="cta" type="submit" name="mode" value="signin">Entrar</button>
       <button class="cta ghost" type="submit" name="mode" value="signup">Criar conta</button>
     </form>
   `;
+}
+function loginError(err) {
+  const known = {
+    "Invalid login credentials": "E-mail ou senha incorretos.",
+    "Email not confirmed": "Falta confirmar o e-mail. Abra a mensagem que enviamos e clique no link.",
+    "User already registered": "Este e-mail já tem conta. Toque em Entrar.",
+  };
+  return known[err.message] ?? err.message;
 }
 
 function renderExercise(id, entry) {
@@ -387,6 +414,17 @@ app.addEventListener("click", (e) => {
       persist();
       { const y = window.scrollY; render(); window.scrollTo(0, y); }
       break;
+    case "togglepw": {
+      const input = t.closest(".pw").querySelector("input");
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      t.setAttribute("aria-pressed", String(show));
+      t.setAttribute("aria-label", show ? "Ocultar senha" : "Mostrar senha");
+      break;
+    }
+    case "relogin":
+      renderLogin("", { email: t.dataset.email });
+      break;
     case "google":
       sync.signInWithGoogle().catch((err) => renderLogin(err.message));
       break;
@@ -500,11 +538,11 @@ app.addEventListener("submit", async (e) => {
   const data = new FormData(form);
   const email = String(data.get("email")).trim();
   const password = String(data.get("password"));
-  if (!email || password.length < 8) return renderLogin("Informe o e-mail e uma senha de pelo menos 8 caracteres.");
+  if (!email || password.length < 8) return renderLogin("Informe o e-mail e uma senha de pelo menos 8 caracteres.", { email });
   try {
     if (mode === "signup") {
       const needsConfirmation = await sync.signUp(email, password);
-      if (needsConfirmation) return renderLogin("Conta criada. Confirme pelo e-mail que enviamos e depois toque em Entrar.");
+      if (needsConfirmation) return renderLogin("", { email, sent: true });
     } else {
       await sync.signIn(email, password);
     }
@@ -512,7 +550,7 @@ app.addEventListener("submit", async (e) => {
     await reconcile();
     render();
   } catch (err) {
-    renderLogin(err.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : err.message);
+    renderLogin(loginError(err), { email });
   }
 });
 
