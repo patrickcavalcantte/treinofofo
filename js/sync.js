@@ -7,10 +7,16 @@ let client = null;
 let user = null;
 let timer = null;
 
+// O link de recuperação de senha volta para o app com type=recovery na URL.
+let recovering = /type=recovery/.test(window.location.hash + window.location.search);
+export const isRecovery = () => recovering;
+export const linkExpired = () => /error_code=otp_expired|error=access_denied/.test(window.location.hash);
+
 async function getClient() {
   if (!client) {
     const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
     client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    client.auth.onAuthStateChange((event) => { if (event === "PASSWORD_RECOVERY") recovering = true; });
   }
   return client;
 }
@@ -31,6 +37,22 @@ export async function signIn(emailAddr, password) {
   const { data, error } = await c.auth.signInWithPassword({ email: emailAddr, password });
   if (error) throw error;
   user = data.user;
+}
+
+/** Envia o link para criar nova senha. Não revela se o e-mail tem conta. */
+export async function resetPassword(emailAddr) {
+  const c = await getClient();
+  const { error } = await c.auth.resetPasswordForEmail(emailAddr, { redirectTo: window.location.origin + window.location.pathname });
+  if (error) throw error;
+}
+
+/** Define a nova senha da sessão aberta pelo link de recuperação. */
+export async function updatePassword(password) {
+  const c = await getClient();
+  const { error } = await c.auth.updateUser({ password });
+  if (error) throw error;
+  recovering = false;
+  window.history.replaceState(null, "", window.location.pathname);
 }
 
 /** Redireciona para o Google e volta para esta mesma página já com a sessão. */

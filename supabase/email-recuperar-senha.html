@@ -1,0 +1,22 @@
+<!--
+  Template do e-mail de recuperação de senha, em português.
+  Supabase > Authentication > Emails > Templates > Reset password.
+  Assunto sugerido: Crie uma nova senha no Treino Fofo
+-->
+<div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #141B2D;">
+  <h1 style="font-size: 22px; margin: 0 0 16px;">Treino Fofo</h1>
+  <p style="font-size: 16px; line-height: 1.5;">Recebemos um pedido para criar uma nova senha na sua conta do <strong>Treino Fofo</strong>.</p>
+  <p style="margin: 24px 0;">
+    <a href="{{ .ConfirmationURL }}"
+       style="background: #2F45D8; color: #FFFFFF; text-decoration: none; padding: 14px 24px; border-radius: 999px; font-weight: bold; display: inline-block;">
+      Criar nova senha
+    </a>
+  </p>
+  <p style="font-size: 14px; line-height: 1.5; color: #5B6478;">
+    Se o botão não funcionar, copie e cole este endereço no navegador:<br>
+    <span style="word-break: break-all;">{{ .ConfirmationURL }}</span>
+  </p>
+  <p style="font-size: 14px; line-height: 1.5; color: #5B6478;">
+    Não pediu isso? Ignore este e-mail. Sua senha atual continua valendo.
+  </p>
+</div>

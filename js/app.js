@@ -74,6 +74,58 @@ function renderHome() {
   `;
 }
 
+function passwordField(name, autocomplete, label) {
+  return `<label class="field-block">${label}
+    <span class="pw">
+      <input name="${name}" type="password" autocomplete="${autocomplete}" minlength="8" required>
+      <button type="button" class="pw-toggle" data-action="togglepw" aria-pressed="false" aria-label="Mostrar senha">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>
+          <line class="pw-slash" x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+      </button>
+    </span>
+  </label>`;
+}
+
+function renderForgot(message = "", { email = "", sent = false } = {}) {
+  if (sent) {
+    app.innerHTML = `
+      <h1 class="display">Confira seu e-mail</h1>
+      <div class="sent" role="status">
+        <p><strong>Se existir uma conta com ${esc(email)}, enviamos um link para criar uma nova senha.</strong></p>
+        <p>O link vale por pouco tempo. Se não achar, olhe o spam ou a aba Promoções.</p>
+      </div>
+      <button class="cta" type="button" data-action="relogin" data-email="${esc(email)}">Voltar para entrar</button>
+    `;
+    return;
+  }
+  app.innerHTML = `
+    <div class="bar"><button class="back" data-action="relogin" data-email="${esc(email)}">‹ Voltar</button><span></span></div>
+    <h1 class="display">Esqueci a senha</h1>
+    <p class="lede">Digite o e-mail da sua conta. Enviamos um link para você criar uma senha nova.</p>
+    <form class="login" data-action="forgot" novalidate>
+      <label class="field-block">E-mail
+        <input name="email" type="email" autocomplete="email" inputmode="email" value="${esc(email)}" required>
+      </label>
+      <p class="login-msg" role="status">${esc(message)}</p>
+      <button class="cta" type="submit">Enviar link</button>
+    </form>
+  `;
+}
+
+function renderNewPassword(message = "") {
+  app.innerHTML = `
+    <h1 class="display">Nova senha</h1>
+    <p class="lede">Escolha uma senha nova, com pelo menos 8 caracteres.</p>
+    <form class="login" data-action="newpassword" novalidate>
+      ${passwordField("password", "new-password", "Nova senha")}
+      <p class="login-msg" role="status">${esc(message)}</p>
+      <button class="cta" type="submit">Salvar senha</button>
+    </form>
+  `;
+}
+
 function renderLogin(message = "", { email = "", sent = false } = {}) {
   if (sent) {
     app.innerHTML = `
@@ -95,18 +147,9 @@ function renderLogin(message = "", { email = "", sent = false } = {}) {
       <label class="field-block">E-mail
         <input name="email" type="email" autocomplete="email" inputmode="email" value="${esc(email)}" required>
       </label>
-      <label class="field-block">Senha
-        <span class="pw">
-          <input name="password" type="password" autocomplete="current-password" minlength="8" required>
-          <button type="button" class="pw-toggle" data-action="togglepw" aria-pressed="false" aria-label="Mostrar senha">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>
-              <line class="pw-slash" x1="3" y1="3" x2="21" y2="21"/>
-            </svg>
-          </button>
-        </span>
-      </label>
+      ${passwordField("password", "current-password", "Senha")}
       <p class="login-msg" role="status">${esc(message)}</p>
+      <button class="switch forgot" type="button" data-action="forgot">Esqueci minha senha</button>
       <button class="cta" type="submit" name="mode" value="signin">Entrar</button>
       <button class="cta ghost" type="submit" name="mode" value="signup">Criar conta</button>
     </form>
@@ -117,6 +160,8 @@ function loginError(err) {
     "Invalid login credentials": "E-mail ou senha incorretos.",
     "Email not confirmed": "Falta confirmar o e-mail. Abra a mensagem que enviamos e clique no link.",
     "User already registered": "Este e-mail já tem conta. Toque em Entrar.",
+    "New password should be different from the old password.": "A nova senha precisa ser diferente da antiga.",
+    "Auth session missing!": "O link expirou. Volte e peça um novo em Esqueci minha senha.",
   };
   return known[err.message] ?? err.message;
 }
@@ -339,6 +384,7 @@ function renderGuide() {
 
 function render() {
   if (view === "login") renderLogin();
+  else if (view === "newpassword") renderNewPassword();
   else if (view === "workout" && state.draft) renderWorkout();
   else if (view === "history") renderHistory();
   else if (view === "guide") renderGuide();
@@ -420,6 +466,11 @@ app.addEventListener("click", (e) => {
       input.type = show ? "text" : "password";
       t.setAttribute("aria-pressed", String(show));
       t.setAttribute("aria-label", show ? "Ocultar senha" : "Mostrar senha");
+      break;
+    }
+    case "forgot": {
+      const typed = t.closest("form")?.elements.email?.value.trim() ?? "";
+      renderForgot("", { email: typed });
       break;
     }
     case "relogin":
@@ -554,8 +605,36 @@ app.addEventListener("submit", async (e) => {
   }
 });
 
+app.addEventListener("submit", async (e) => {
+  const form = e.target.closest("form[data-action]");
+  const kind = form?.dataset.action;
+  if (kind !== "forgot" && kind !== "newpassword") return;
+  e.preventDefault();
+  if (kind === "forgot") {
+    const email = String(new FormData(form).get("email")).trim();
+    if (!email) return renderForgot("Informe o e-mail da conta.", { email });
+    try {
+      await sync.resetPassword(email);
+      renderForgot("", { email, sent: true });
+    } catch (err) {
+      renderForgot(loginError(err), { email });
+    }
+    return;
+  }
+  const password = String(new FormData(form).get("password"));
+  if (password.length < 8) return renderNewPassword("A senha precisa ter pelo menos 8 caracteres.");
+  try {
+    await sync.updatePassword(password);
+    view = state.draft ? "workout" : "home";
+    await reconcile();
+    render();
+  } catch (err) {
+    renderNewPassword(loginError(err));
+  }
+});
+
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && sync.signedIn() && view !== "workout") reconcile();
+  if (document.visibilityState === "visible" && sync.signedIn() && !sync.isRecovery() && view !== "workout") reconcile();
 });
 
 async function boot() {
@@ -563,8 +642,10 @@ async function boot() {
   if (view === "workout") keepAwake(true);
   if (!sync.enabled) return;
   try {
-    if (await sync.start()) { await reconcile(); render(); }
-    else { view = "login"; render(); }
+    const user = await sync.start();
+    if (user && sync.isRecovery()) { view = "newpassword"; render(); }
+    else if (user) { await reconcile(); render(); }
+    else { view = "login"; renderLogin(sync.linkExpired() ? "O link expirou. Toque em Esqueci minha senha para receber outro." : ""); }
   } catch (err) {
     console.warn("Sem conexão com o servidor. O app segue com os dados deste aparelho.", err);
   }
