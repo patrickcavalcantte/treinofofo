@@ -2,8 +2,9 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   emptyState, mergeStates, dayKey, saveMed, removeMed, activeMeds, toggleDose, addInterval, intervalStatus,
-  todayDoses, medDay, medAdherence, saveMeal, removeMeal, setMealStatus, dietDay, dietAdherence, activeMeals, importMeals,
+  todayDoses, medDay, medAdherence, saveMeal, removeMeal, setMealStatus, dietDay, dietAdherence, activeMeals, importMeals, doseHistory,
 } from "../js/logic.js";
+import { habitCards } from "../js/health.js";
 
 // 5/out/2026 é segunda-feira.
 const at = (m, d, h = 9) => new Date(2026, m - 1, d, h, 0);
@@ -210,5 +211,64 @@ describe("importar plano", () => {
     const text = "x".repeat(1900);
     const { state } = importMeals(emptyState(), [{ name: "Jantar", text }], OCT(1), makeId);
     assert.equal(activeMeals(state)[0].text.length, 1900);
+  });
+});
+describe("painel de hábitos", () => {
+  test("doseHistory lista da mais recente para a mais antiga", () => {
+    let s = saveMed(emptyState(), hormone, "h", at(1, 1));
+    s = toggleDose(toggleDose(s, "h", "dose", KEY(4, 5)), "h", "dose", KEY(7, 5));
+    s = toggleDose(toggleDose(s, "h", "dose", KEY(4, 5)), "h", "dose", KEY(4, 5)); // liga, desliga e liga de novo
+    assert.deepEqual(doseHistory(s, "h"), ["2026-07-05", "2026-04-05"]);
+  });
+  test("sem nada cadastrado, os cartões ficam vazios", () => {
+    const c = habitCards(emptyState(), OCT(5));
+    assert.deepEqual([c.meds.has, c.hormones.has, c.diet.has], [false, false, false]);
+    assert.equal(c.hormones.value, "–");
+  });
+  test("cartão de hormônio mostra dias até a próxima dose e a situação", () => {
+    let s = saveMed(emptyState(), hormone, "h", at(7, 1));
+    s = toggleDose(s, "h", "dose", KEY(7, 5));
+    assert.deepEqual(habitCards(s, at(10, 3)).hormones, { has: true, value: "2 d", label: "Hormônio: próxima dose", status: "perto" });
+    assert.equal(habitCards(s, at(10, 20)).hormones.status, "atrasado");
+    assert.equal(habitCards(s, at(8, 1)).hormones.status, "ok");
+  });
+  test("hormônio sem dose registrada pede a primeira", () => {
+    const s = saveMed(emptyState(), hormone, "h", at(7, 1));
+    assert.equal(habitCards(s, OCT(5)).hormones.status, "primeira");
+  });
+  test("o hormônio que vence primeiro aparece no cartão", () => {
+    let s = saveMed(emptyState(), hormone, "h1", at(7, 1));
+    s = saveMed(s, { ...hormone, name: "Outro", every: { n: 1, unit: "month" } }, "h2", at(7, 1));
+    s = toggleDose(toggleDose(s, "h1", "dose", KEY(7, 5)), "h2", "dose", KEY(9, 4)); // h1 vence 5/10, h2 vence 4/10
+    assert.match(habitCards(s, at(10, 3)).hormones.label, /Outro/);
+  });
+  test("cartões de remédios e dieta trazem a adesão de 7 dias", () => {
+    let s = saveMed(emptyState(), daily("A"), "a", OCT(1));
+    s = saveMeal(s, { name: "Café" }, "m1", OCT(1));
+    s = toggleDose(s, "a", "Manhã", KEY(10, 4));
+    s = setMealStatus(s, "m1", KEY(10, 4), "parcial");
+    const c = habitCards(s, OCT(5));
+    assert.deepEqual([c.meds.has, c.meds.pct, c.diet.has, c.diet.pct], [true, 25, true, 13]); // 4 dias válidos (1 a 4/10): 1 de 4 doses; 0,5 ponto de 4 refeições
+  });
+});
+describe("hormônio a cada 90 dias", () => {
+  const h90 = { name: "Hormônio", dose: "1 ampola", kind: "interval", every: { n: 90, unit: "day" } };
+  test("aceita 90 dias e recusa intervalo acima de 365", () => {
+    assert.equal(saveMed(emptyState(), h90, "h", OCT(1)).meds[0].every.n, 90);
+    assert.throws(() => saveMed(emptyState(), { ...h90, every: { n: 366, unit: "day" } }, "h", OCT(1)), /intervalo/);
+  });
+  test("próxima dose é exatamente 90 dias depois, mesmo cruzando meses de tamanhos diferentes", () => {
+    assert.equal(dayKey(addInterval(at(10, 5), { n: 90, unit: "day" })), "2027-01-03");
+    assert.equal(dayKey(addInterval(at(1, 5), { n: 90, unit: "day" })), "2026-04-05");
+    assert.equal(dayKey(addInterval(at(7, 9), { n: 90, unit: "day" })), "2026-10-07");
+  });
+  test("situação por dias restantes", () => {
+    let s = saveMed(emptyState(), h90, "h", at(7, 1));
+    s = toggleDose(s, "h", "dose", KEY(7, 9)); // próxima: 7/10
+    const med = s.meds[0];
+    assert.equal(intervalStatus(s, med, at(10, 7)).daysLeft, 0);
+    assert.equal(intervalStatus(s, med, at(9, 30)).status, "perto");
+    assert.equal(intervalStatus(s, med, at(10, 8)).status, "atrasado");
+    assert.equal(intervalStatus(s, med, at(8, 1)).status, "ok");
   });
 });

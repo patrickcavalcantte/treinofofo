@@ -267,7 +267,7 @@ export const activeMeals = (state) => live(state.meals);
 
 function normalizeEvery(every) {
   const n = Number(every?.n);
-  if (!Number.isInteger(n) || n < 1 || n > 60 || !UNITS[every?.unit]) throw new Error("Informe o intervalo, por exemplo 3 meses.");
+  if (!Number.isInteger(n) || n < 1 || n > 365 || !UNITS[every?.unit]) throw new Error("Informe o intervalo, por exemplo 90 dias.");
   return { n, unit: every.unit };
 }
 
@@ -324,6 +324,12 @@ export function intervalStatus(state, med, now) {
   const next = addInterval(parseDayKey(last), med.every);
   const daysLeft = calendarDaysBetween(now, next);
   return { last, next: dayKey(next), daysLeft, status: daysLeft < 0 ? "atrasado" : daysLeft <= 7 ? "perto" : "ok" };
+}
+
+/** Datas em que uma dose de remédio de intervalo foi tomada, da mais recente para a mais antiga. */
+export function doseHistory(state, medId) {
+  return Object.entries(state.medLog ?? {})
+    .filter(([, day]) => day[doseKey(medId, "dose")] === true).map(([k]) => k).sort().reverse();
 }
 
 /** Doses de hoje dos remédios diários. */

@@ -1,7 +1,7 @@
 // Telas de remédios e dieta. Só montam HTML a partir do estado; os eventos ficam em app.js.
 import { esc } from "./dom.js";
 import {
-  SLOTS, UNITS, activeMeds, activeMeals, todayDoses, intervalStatus, medAdherence, medDay,
+  SLOTS, UNITS, doseHistory, activeMeds, activeMeals, todayDoses, intervalStatus, medAdherence, medDay,
   dietAdherence, dietDay, dayKey, startOfWeek,
 } from "./logic.js";
 
@@ -27,6 +27,14 @@ function renderStrip(now, cellFor) {
     <p class="small strip-legend"><span class="strip-cell full"></span> tudo <span class="strip-cell part"></span> em parte <span class="strip-cell miss"></span> nada</p>`;
 }
 
+/** "Última: … · Próxima: … (em N dias)" para remédios de intervalo. */
+function intervalInfo(st) {
+  if (st.status === "primeira") return "Nenhuma dose registrada ainda. Marque quando tomar a próxima.";
+  const when = st.daysLeft < 0 ? `(atrasada ${-st.daysLeft} ${-st.daysLeft === 1 ? "dia" : "dias"})`
+    : st.daysLeft === 0 ? "(hoje)" : `(em ${st.daysLeft} ${st.daysLeft === 1 ? "dia" : "dias"})`;
+  return `Última: ${fmtDay(st.last)} · Próxima: ${fmtDay(st.next)} ${when}`;
+}
+
 function stats(a7, a30, note) {
   return `<div class="stats two">
     <div><strong>${pct(a7.pct)}</strong><span>últimos 7 dias</span></div>
@@ -38,7 +46,7 @@ function stats(a7, a30, note) {
 
 function medForm(med) {
   const kind = med?.kind ?? "daily";
-  const every = med?.every ?? { n: 3, unit: "month" };
+  const every = med?.every ?? { n: 90, unit: "day" };
   return `
     <form class="login med-form" data-action="med-save" novalidate>
       <h2>${med ? "Editar remédio" : "Novo remédio"}</h2>
@@ -59,7 +67,7 @@ function medForm(med) {
       </fieldset>
       <div class="kind-interval every" ${kind === "interval" ? "" : "hidden"}>
         <label class="field-block">A cada
-          <input name="n" type="number" inputmode="numeric" min="1" max="60" value="${every.n}">
+          <input name="n" type="number" inputmode="numeric" min="1" max="365" value="${every.n}">
         </label>
         <label class="field-block">Unidade
           <select name="unit">
@@ -94,9 +102,7 @@ export function renderMedsView(state, now, editing) {
   const intervalsHtml = intervals.map((m) => {
     const st = intervalStatus(state, m, now);
     const takenToday = state.medLog?.[today]?.[`${m.id}|dose`] === true;
-    const info = st.status === "primeira"
-      ? "Nenhuma dose registrada ainda. Marque quando tomar a próxima."
-      : `Última: ${fmtDay(st.last)} · Próxima: ${fmtDay(st.next)} ${st.daysLeft < 0 ? `(atrasada ${-st.daysLeft} ${-st.daysLeft === 1 ? "dia" : "dias"})` : st.daysLeft === 0 ? "(hoje)" : `(em ${st.daysLeft} ${st.daysLeft === 1 ? "dia" : "dias"})`}`;
+    const info = intervalInfo(st);
     return `<li class="interval ${st.status}">
       <div><strong>${esc(m.name)}</strong>${m.dose ? ` <span class="small">${esc(m.dose)}</span>` : ""}
         <p class="small" style="margin:.25rem 0 0">A cada ${everyText(m.every)}</p>
@@ -225,4 +231,81 @@ export function healthNotices(state, now) {
     out.push(`Dieta de hoje: ${marked} de ${meals.length} refeições marcadas. <button class="switch" data-action="go" data-view="diet">Abrir</button>`);
   }
   return out.map((html) => `<p class="notice">${html}</p>`).join("");
+}
+
+// ---------- Painel de hábitos ----------
+
+/** Números dos cartões-resumo do Hábito: remédios, hormônios (remédios de intervalo) e dieta. */
+export function habitCards(state, now) {
+  const meds = activeMeds(state);
+  const hasMeds = meds.some((m) => m.kind === "daily");
+  const hormones = meds.filter((m) => m.kind === "interval").map((m) => ({ med: m, st: intervalStatus(state, m, now) }));
+  // Mostra o que vence primeiro; remédio sem nenhuma dose registrada vem por último.
+  hormones.sort((a, b) => (a.st.daysLeft ?? Infinity) - (b.st.daysLeft ?? Infinity));
+  const next = hormones[0] ?? null;
+  const hormone = !next ? { has: false, value: "–", label: "Nenhum cadastrado", status: "ok" }
+    : next.st.status === "primeira" ? { has: true, value: "–", label: `${next.med.name}: registre a 1ª dose`, status: "primeira" }
+    : next.st.daysLeft < 0 ? { has: true, value: `${-next.st.daysLeft} d`, label: `${next.med.name}: atrasado`, status: "atrasado" }
+    : { has: true, value: next.st.daysLeft === 0 ? "Hoje" : `${next.st.daysLeft} d`, label: `${next.med.name}: próxima dose`, status: next.st.status };
+  return {
+    meds: { has: hasMeds, pct: medAdherence(state, now, 7).pct },
+    hormones: hormone,
+    diet: { has: activeMeals(state).length > 0, pct: dietAdherence(state, now, 7).pct },
+  };
+}
+
+const goTo = (view, text) => `<button class="cta ghost" type="button" data-action="go" data-view="${view}">${text}</button>`;
+
+export function renderMedsHabit(state, now) {
+  if (!habitCards(state, now).meds.has) {
+    return `<p class="lede">Nenhum remédio diário cadastrado ainda.</p>${goTo("meds", "Cadastrar remédios")}`;
+  }
+  const today = dayKey(now);
+  const strip = renderStrip(now, (key) => {
+    const d = medDay(state, key);
+    if (!d.expected) return { cls: "empty", title: "sem doses" };
+    if (d.taken === d.expected) return { cls: "full", title: `${d.taken} de ${d.expected} doses` };
+    if (d.taken > 0) return { cls: "part", title: `${d.taken} de ${d.expected} doses` };
+    return { cls: key === today ? "empty" : "miss", title: `0 de ${d.expected} doses` };
+  });
+  return `${stats(medAdherence(state, now, 7), medAdherence(state, now, 30), "Porcentagem de doses tomadas. Dias sem marcação contam como não tomadas; hoje só entra depois da primeira marcação.")}
+    ${strip}${goTo("meds", "Abrir Remédios")}`;
+}
+
+export function renderHormonesHabit(state, now) {
+  const meds = activeMeds(state).filter((m) => m.kind === "interval");
+  if (!meds.length) {
+    return `<p class="lede">Nenhum hormônio cadastrado. Em Remédios, escolha "A cada algum tempo" (por exemplo, a cada 3 meses).</p>${goTo("meds", "Cadastrar em Remédios")}`;
+  }
+  return meds.map((m) => {
+    const st = intervalStatus(state, m, now);
+    const dates = doseHistory(state, m.id);
+    const rows = dates.map((d, i) => {
+      const prev = dates[i + 1];
+      const gap = prev ? Math.round((new Date(`${d}T12:00:00`) - new Date(`${prev}T12:00:00`)) / 86_400_000) : null;
+      return `<li><span>${fmtDay(d)}</span><span class="small">${gap === null ? "primeira dose registrada" : `${gap} dias depois da anterior`}</span></li>`;
+    }).join("");
+    return `<section class="interval ${st.status}" style="margin-top:.75rem">
+      <div><strong>${esc(m.name)}</strong>${m.dose ? ` <span class="small">${esc(m.dose)}</span>` : ""}
+        <p class="small" style="margin:.25rem 0 0">A cada ${everyText(m.every)}</p>
+        <p style="margin:.25rem 0 0">${esc(intervalInfo(st))}</p></div>
+      ${rows ? `<ul class="dose-history">${rows}</ul>` : ""}
+    </section>`;
+  }).join("") + goTo("meds", "Registrar dose em Remédios");
+}
+
+export function renderDietHabit(state, now) {
+  if (!habitCards(state, now).diet.has) {
+    return `<p class="lede">Nenhuma refeição cadastrada ainda.</p>${goTo("diet", "Cadastrar dieta")}`;
+  }
+  const today = dayKey(now);
+  const strip = renderStrip(now, (key) => {
+    const d = dietDay(state, key);
+    if (!d.expected) return { cls: "empty", title: "sem refeições" };
+    if (d.marked === 0) return { cls: key === today ? "empty" : "miss", title: "sem marcação" };
+    const ratio = d.score / d.expected;
+    return { cls: ratio >= 0.99 ? "full" : ratio > 0 ? "part" : "miss", title: `${Math.round(ratio * 100)}% do plano` };
+  });
+  return `${stats(dietAdherence(state, now, 7), dietAdherence(state, now, 30), "Segui vale 100%, em parte 50% e fora 0%. Dias sem marcação contam como 0%; hoje só entra depois da primeira marcação.")}
+    ${strip}${goTo("diet", "Abrir Dieta")}`;
 }

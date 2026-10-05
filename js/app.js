@@ -8,7 +8,9 @@ import {
 import * as sync from "./sync.js";
 import { initChat } from "./chatui.js";
 import { esc } from "./dom.js";
-import { renderMedsView, renderDietView, healthNotices } from "./health.js";
+import {
+  renderMedsView, renderDietView, healthNotices, habitCards, renderMedsHabit, renderHormonesHabit, renderDietHabit,
+} from "./health.js";
 import { GOOGLE_LOGIN } from "./config.js";
 
 const app = document.getElementById("app");
@@ -330,8 +332,9 @@ function renderCalendar(now) {
   return `<div class="cal"><span></span>${names.map((n) => `<span class="cal-name" aria-hidden="true">${n}</span>`).join("")}${rows}</div>`;
 }
 
-function renderHabit() {
-  const now = new Date();
+let habitTab = "treino";
+
+function renderTrainingHabit(now) {
   const done = weeklyCounts(state, now, Math.min(weeksSinceStart(now), CHART_SLOTS));
   const weeks = [...done];
   while (weeks.length < 6) { // espaço reservado para as próximas semanas
@@ -341,9 +344,7 @@ function renderHabit() {
   const streak = weekStreak(state, now);
   const total = trainedDays(state).size;
   const best = Math.max(...done.map((w) => w.count));
-  app.innerHTML = `
-    <div class="bar"><button class="back" data-action="go" data-view="home">‹ Voltar</button><span></span></div>
-    <h1 class="display">Hábito</h1>
+  return `
     <p class="lede">${streak > 0
       ? `${streak} ${streak === 1 ? "semana seguida" : "semanas seguidas"} batendo a meta de ${WEEKLY_GOAL} treinos.`
       : `Meta: ${WEEKLY_GOAL} treinos por semana. A sequência começa quando você fechar a primeira semana.`}</p>
@@ -359,10 +360,36 @@ function renderHabit() {
 
     <h2 class="section">Calendário</h2>
     <p class="small" style="margin:0 0 .75rem">Treinos concluídos no app entram sozinhos. Treinou fora do app? Toque no dia para marcar.</p>
-    ${renderCalendar(now)}
-  `;
+    ${renderCalendar(now)}`;
 }
 
+function renderHabit() {
+  const now = new Date();
+  const cards = habitCards(state, now);
+  const doneWeek = weeklyCounts(state, now, 1)[0].count;
+  const pct = (v) => (v === null ? "–" : `${v}%`);
+  const items = [
+    { id: "treino", name: "Treino", value: `${Math.min(doneWeek, 99)}/${WEEKLY_GOAL}`, label: "treinos esta semana", status: doneWeek >= WEEKLY_GOAL ? "ok" : "" },
+    { id: "remedios", name: "Remédios", value: cards.meds.has ? pct(cards.meds.pct) : "–", label: cards.meds.has ? "doses, 7 dias" : "nenhum cadastrado", status: "" },
+    { id: "hormonios", name: "Hormônios", value: cards.hormones.value, label: cards.hormones.label, status: cards.hormones.status },
+    { id: "dieta", name: "Dieta", value: cards.diet.has ? pct(cards.diet.pct) : "–", label: cards.diet.has ? "plano, 7 dias" : "nenhuma cadastrada", status: "" },
+  ];
+  const detail = {
+    treino: () => renderTrainingHabit(now),
+    remedios: () => renderMedsHabit(state, now),
+    hormonios: () => renderHormonesHabit(state, now),
+    dieta: () => renderDietHabit(state, now),
+  }[habitTab]();
+  app.innerHTML = `
+    <div class="bar"><button class="back" data-action="go" data-view="home">‹ Voltar</button><span></span></div>
+    <h1 class="display">Hábito</h1>
+    <div class="habit-cards" role="group" aria-label="Escolha o hábito">
+      ${items.map((i) => `<button type="button" class="habit-card ${i.status}" data-action="habit-tab" data-tab="${i.id}" aria-pressed="${habitTab === i.id}">
+        <span class="habit-name">${i.name}</span><strong>${esc(i.value)}</strong><span class="small">${esc(i.label)}</span></button>`).join("")}
+    </div>
+    <div class="habit-detail">${detail}</div>
+  `;
+}
 function renderWeightChart(entries) {
   const W = 320, H = 150, pad = { l: 34, r: 10, t: 12, b: 22 };
   const kgs = entries.map((e) => e.kg);
@@ -608,6 +635,10 @@ app.addEventListener("click", (e) => {
       const y = window.scrollY; render(); window.scrollTo(0, y);
       break;
     }
+    case "habit-tab":
+      habitTab = t.dataset.tab;
+      { const y = window.scrollY; render(); window.scrollTo(0, y); }
+      break;
     case "med-new": editing = { type: "med", id: null }; render(); window.scrollTo(0, 0); break;
     case "med-edit": editing = { type: "med", id: t.dataset.id }; render(); window.scrollTo(0, 0); break;
     case "meal-new": editing = { type: "meal", id: null }; render(); window.scrollTo(0, 0); break;
