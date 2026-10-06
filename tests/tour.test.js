@@ -14,9 +14,9 @@ const bad = (html) => /undefined|NaN|\[object|Infinity/.test(html);
 const flat = (html) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
 describe("passos do tour", () => {
-  test("são seis, e cobrem fotos dos exercícios, dieta, nutrientes, atividades, remédios e hábito", () => {
+  test("são seis, e cobrem fotos dos exercícios, atividades, dieta, nutrientes, remédios e hábito", () => {
     assert.equal(SLIDES.length, 6);
-    assert.deepEqual(SLIDES.map((s) => s.id), ["treino", "dieta", "nutrientes", "atividades", "remedios", "habito"]);
+    assert.deepEqual(SLIDES.map((s) => s.id), ["treino", "atividades", "dieta", "nutrientes", "remedios", "habito"]);
     for (const s of SLIDES) { assert.ok(s.title && s.text.length > 40, s.id); assert.equal(typeof s.preview, "function"); }
   });
   test("todo passo tem o botão Pular, e só o primeiro não tem Voltar", () => {
@@ -98,7 +98,7 @@ describe("dados fictícios", () => {
     assert.deepEqual(real, emptyState());
   });
   test("o passo das atividades mostra a foto livre, o crédito e as favoritas", () => {
-    const html = renderTour(3, NOW);
+    const html = renderTour(1, NOW);
     assert.match(html, /assets\/cadeirante-basquete\.jpg/);
     assert.ok(existsSync(join(root, "assets/cadeirante-basquete.jpg")));
     assert.match(flat(html), /domínio público/);
@@ -107,9 +107,9 @@ describe("dados fictícios", () => {
     assert.match(flat(html), /cadeira de rodas/);
   });
   test("as telas de exemplo mostram números", () => {
-    assert.match(flat(renderTour(2, NOW)), /de \d[\d.]* kcal/);
-    assert.match(flat(renderTour(2, NOW)), /Restam/);
-    assert.match(flat(renderTour(1, NOW)), /Meta .*Registrado .*Restam/);
+    assert.match(flat(renderTour(3, NOW)), /de \d[\d.]* kcal/);
+    assert.match(flat(renderTour(3, NOW)), /Restam/);
+    assert.match(flat(renderTour(2, NOW)), /Meta .*Registrado .*Restam/);
     assert.match(flat(renderTour(4, NOW)), /Hormônio/);
     assert.match(flat(renderTour(4, NOW)), /em \d+ dias/);
     assert.match(flat(renderTour(5, NOW)), /\d+%/);

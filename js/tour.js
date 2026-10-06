@@ -105,6 +105,12 @@ export const SLIDES = [
     preview: () => exercisePreview(),
   },
   {
+    id: "atividades", title: "Todo movimento conta",
+    text: "Dança, trilha, escalada, faxina, compras no mercado: registre qualquer atividade e o gasto vira crédito de calorias no dia. Salve as suas favoritas com o seu nome e ache rápido. Tem tabela própria para quem usa cadeira de rodas.",
+    caption: "Exemplo com dados fictícios. Foto: Força Aérea dos EUA, domínio público.",
+    preview: (s, now) => `<img class="tour-photo" src="assets/cadeirante-basquete.jpg" alt="Pessoas jogando basquete em cadeira de rodas em uma quadra" width="720" height="481">${activityGlance(s, dayKey(now))}`,
+  },
+  {
     id: "dieta", title: "Dieta e check das refeições",
     text: "Anexe o PDF do plano alimentar ou cadastre as refeições. A cada dia, marque Segui, Em parte ou Fora e veja quanto resta de calorias.",
     preview: (s, now) => dietGlance(s, now),
@@ -113,12 +119,6 @@ export const SLIDES = [
     id: "nutrientes", title: "Calorias, macros e vitaminas",
     text: "Registre o que você comeu, com a tabela TACO e produtos de marca, e acompanhe calorias, proteínas, carboidratos, gorduras, vitaminas e minerais contra as suas metas.",
     preview: (s, now) => nutriGlance(s, now, dayKey(now)),
-  },
-  {
-    id: "atividades", title: "Todo movimento conta",
-    text: "Dança, trilha, escalada, faxina, compras no mercado: registre qualquer atividade e o gasto vira crédito de calorias no dia. Salve as suas favoritas com o seu nome e ache rápido. Tem tabela própria para quem usa cadeira de rodas.",
-    caption: "Exemplo com dados fictícios. Foto: Força Aérea dos EUA, domínio público.",
-    preview: (s, now) => `<img class="tour-photo" src="assets/cadeirante-basquete.jpg" alt="Pessoas jogando basquete em cadeira de rodas em uma quadra" width="720" height="481">${activityGlance(s, dayKey(now))}`,
   },
   {
     id: "remedios", title: "Remédios e adesão",
