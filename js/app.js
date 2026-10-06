@@ -190,12 +190,12 @@ function renderHome() {
   const progress = state.draft ? draftProgress(state.draft) : null;
   const treino = draftWorkout
     ? `<button type="button" class="home-card hero treino resume" data-action="go" data-view="workout">
-        <span class="home-card-name">Treino em andamento</span>
+        <span class="home-card-name">Treino de Musculação em andamento</span>
         <strong>${esc(draftWorkout.title)}</strong>
         <span class="small">${progress.finished} de ${progress.total} exercícios · toque para continuar</span>
       </button>`
     : `<button type="button" class="home-card hero treino" data-action="go" data-view="treino">
-        <span class="home-card-name">Treino</span>
+        <span class="home-card-name">Treino de Musculação</span>
         <strong>${esc(next.title)}</strong>
         <span class="small">${esc(next.focus)} · ${Math.min(done, 99)} de ${goal} na semana</span>
       </button>`;
