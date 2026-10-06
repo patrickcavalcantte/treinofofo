@@ -193,9 +193,180 @@ export const EXERCISES = {
       "Desce até o cotovelo fazer 90°. Mais que isso força o ombro.",
     ],
   },
+  // ---- Inferiores, costas e core ----
+  agachamentoLivre: {
+    name: "Agachamento livre",
+    muscles: ["quadríceps", "glúteo"],
+    sets: 3, repMin: 12, repMax: 20,
+    type: "bodyweight",
+    tempo: "Desce em 3 segundos, sobe firme",
+    img: "Bodyweight_Squat",
+    cues: [
+      "Pés na largura dos ombros, pontas levemente para fora.",
+      "Leva o quadril para trás e para baixo, como se fosse sentar numa cadeira.",
+      "Joelhos acompanham a direção dos pés, sem cair para dentro. Calcanhar no chão e peito aberto.",
+      "Desce até as coxas ficarem paralelas ao chão, ou até onde der sem dor.",
+    ],
+  },
+  agachamentoHalteres: {
+    name: "Agachamento com halteres",
+    muscles: ["quadríceps", "glúteo"],
+    sets: 3, repMin: 12, repMax: 20,
+    type: "dumbbell",
+    tempo: "Desce em 3 segundos, sobe firme",
+    img: "Dumbbell_Squat",
+    cues: [
+      "Halteres ao lado do corpo, braços esticados e relaxados.",
+      "Mesmo movimento do agachamento livre: quadril para trás, costas retas.",
+      "Use peso leve. O foco aqui é manter a postura em todas as repetições.",
+    ],
+  },
+  afundo: {
+    name: "Afundo com halteres",
+    muscles: ["quadríceps", "glúteo"],
+    sets: 3, repMin: 10, repMax: 15,
+    type: "dumbbell",
+    unilateral: true,
+    tempo: "Desce em 3 segundos",
+    img: "Dumbbell_Lunges",
+    cues: [
+      "Dá um passo largo à frente e desce até o joelho de trás ficar perto do chão.",
+      "Joelho da frente alinhado com o pé. Tronco reto, olhar para frente.",
+      "Empurra com o calcanhar da frente para voltar. Troca de perna a cada série.",
+      "Se perder o equilíbrio, apoie uma mão na parede.",
+    ],
+  },
+  ponteGluteo: {
+    name: "Ponte de glúteo",
+    muscles: ["glúteo", "posterior de coxa"],
+    sets: 3, repMin: 12, repMax: 20,
+    type: "bodyweight",
+    tempo: "Sobe firme, segura 1 segundo no topo, desce em 3",
+    cues: [
+      "Deitado de barriga para cima, joelhos dobrados e pés apoiados na largura do quadril.",
+      "Sobe o quadril apertando o glúteo, até formar uma linha do ombro ao joelho.",
+      "Não arqueie a lombar para subir mais. Segura 1 segundo no topo.",
+      "Com uma perna: a outra fica esticada no ar e o quadril não pode cair para o lado. Faça o mesmo número de repetições nos dois lados.",
+    ],
+    levels: [
+      { name: "Ponte de glúteo", img: "Butt_Lift_Bridge" },
+      { name: "Ponte com uma perna", img: "Single_Leg_Glute_Bridge" },
+    ],
+  },
+  extensaoQuadril: {
+    name: "Extensão de quadril em quatro apoios",
+    muscles: ["glúteo"],
+    sets: 3, repMin: 12, repMax: 20,
+    type: "bodyweight",
+    unilateral: true,
+    tempo: "Sobe em 1 segundo, desce em 3",
+    img: "Glute_Kickback",
+    cues: [
+      "Mãos e joelhos no chão, costas retas e abdômen firme.",
+      "Estica uma perna para trás e para cima, apertando o glúteo.",
+      "Não arqueie a lombar para subir mais. Volta devagar, sem encostar o joelho no chão.",
+    ],
+  },
+  panturrilha: {
+    name: "Panturrilha sentado com halter",
+    muscles: ["panturrilha"],
+    sets: 3, repMin: 15, repMax: 25,
+    type: "dumbbell",
+    unilateral: true,
+    tempo: "Sobe em 1 s, segura 1 s, desce em 3 s",
+    img: "Dumbbell_Seated_One-Leg_Calf_Raise",
+    cues: [
+      "Sentado numa cadeira firme, com o pé no chão e o halter apoiado no joelho.",
+      "Sobe o calcanhar o máximo que conseguir e desce devagar, sentindo alongar.",
+      "Faz todas as repetições de uma perna antes de trocar.",
+    ],
+  },
+  stiff: {
+    name: "Stiff com halteres",
+    muscles: ["posterior de coxa", "glúteo", "lombar"],
+    sets: 3, repMin: 12, repMax: 15,
+    type: "dumbbell",
+    tempo: "Desce em 3 segundos",
+    img: "Stiff-Legged_Dumbbell_Deadlift",
+    cues: [
+      "Pés na largura do quadril, joelhos levemente dobrados e quase parados.",
+      "Leva o quadril para trás, como se fosse fechar uma porta com o glúteo. Costas retas o tempo todo.",
+      "Os halteres deslizam perto das pernas. Desce até sentir alongar atrás da coxa, em geral perto da canela.",
+      "Se a lombar arredondar, desça menos. Sobe apertando o glúteo.",
+    ],
+  },
+  remadaCurvada: {
+    name: "Remada curvada com halteres",
+    muscles: ["costas", "bíceps"],
+    sets: 3, repMin: 12, repMax: 20,
+    type: "dumbbell",
+    tempo: "Puxa em 1 s, segura 1 s, desce em 3 s",
+    img: "Bent_Over_Two-Dumbbell_Row",
+    cues: [
+      "Tronco inclinado para frente com as costas retas e os joelhos levemente dobrados.",
+      "Puxa os halteres em direção ao umbigo, levando os cotovelos para trás.",
+      "Aperta as escápulas no topo. Mantém o pescoço alinhado, sem levantar a cabeça.",
+    ],
+  },
+  remadaUnilateral: {
+    name: "Remada unilateral com halter",
+    muscles: ["costas", "bíceps"],
+    sets: 3, repMin: 12, repMax: 20,
+    type: "dumbbell",
+    unilateral: true,
+    tempo: "Puxa em 1 s, segura 1 s, desce em 3 s",
+    img: "One-Arm_Dumbbell_Row",
+    cues: [
+      "A foto mostra um banco. Em casa, apoie uma mão e o joelho do mesmo lado numa cadeira ou sofá firme.",
+      "Costas retas, paralelas ao chão. Puxa o halter em direção ao quadril, com o cotovelo rente ao corpo.",
+      "Não gire o tronco. Faz todas as repetições de um lado antes de trocar.",
+    ],
+  },
+  agachamentoApoiado: {
+    name: "Agachamento com pé de trás apoiado",
+    muscles: ["quadríceps", "glúteo"],
+    sets: 3, repMin: 10, repMax: 15,
+    type: "dumbbell",
+    unilateral: true,
+    tempo: "Desce em 3 segundos",
+    img: "Split_Squat_with_Dumbbells",
+    cues: [
+      "Apoia o pé de trás numa cadeira firme ou num sofá e dá um passo grande para frente.",
+      "Desce até a coxa da frente ficar quase paralela ao chão. O joelho da frente acompanha o pé.",
+      "Exercício de equilíbrio: comece sem peso e apoie uma mão na parede se precisar.",
+      "Empurra com o calcanhar da frente para subir. Faz todas as repetições de um lado antes de trocar.",
+    ],
+  },
+  deadBug: {
+    name: "Inseto morto (dead bug)",
+    muscles: ["abdômen"],
+    sets: 3, repMin: 8, repMax: 16,
+    type: "bodyweight",
+    tempo: "Lento e controlado",
+    img: "Dead_Bug",
+    cues: [
+      "Deitado de barriga para cima, braços esticados para o teto e joelhos dobrados a 90°.",
+      "Baixa um braço e a perna do lado oposto, devagar, sem a lombar sair do chão.",
+      "Volta e troca de lado. Uma repetição é um lado direito mais um esquerdo.",
+    ],
+  },
+  abdominalInvertido: {
+    name: "Abdominal invertido",
+    muscles: ["abdômen"],
+    sets: 3, repMin: 10, repMax: 20,
+    type: "bodyweight",
+    tempo: "Sobe em 1 s, desce em 3 s",
+    img: "Reverse_Crunch",
+    cues: [
+      "Deitado de barriga para cima, mãos ao lado do corpo, joelhos dobrados e pés no ar.",
+      "Levanta o quadril poucos centímetros do chão usando o abdômen, sem balançar.",
+      "Desce devagar. Não puxe as pernas com impulso.",
+    ],
+  },
 };
 
-// Dois treinos alternados (A, B, A / B, A, B...) em 3 dias não consecutivos.
+// Quatro treinos. A e B são de membros superiores; C e D, de pernas, glúteos, costas e core.
+// Quem alterna entre eles é a rotação do perfil (ver onboarding.js). Sem perfil, o app alterna A e B.
 export const WORKOUTS = {
   A: {
     title: "Treino A",
@@ -206,6 +377,16 @@ export const WORKOUTS = {
     title: "Treino B",
     focus: "Ombro, bíceps e tríceps",
     exercises: ["flexaoFechada", "supinoChao", "desenvolvimentoNeutro", "crucifixoInvertido", "roscaMartelo", "roscaConcentrada", "mergulhoCadeira", "tricepsCoice"],
+  },
+  C: {
+    title: "Treino C",
+    focus: "Pernas e glúteos",
+    exercises: ["agachamentoLivre", "agachamentoHalteres", "afundo", "ponteGluteo", "extensaoQuadril", "panturrilha"],
+  },
+  D: {
+    title: "Treino D",
+    focus: "Posterior, costas e core",
+    exercises: ["stiff", "remadaCurvada", "remadaUnilateral", "agachamentoApoiado", "deadBug", "abdominalInvertido"],
   },
 };
 

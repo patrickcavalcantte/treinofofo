@@ -91,7 +91,7 @@ export function intentFromText(text) {
  */
 export function reply(intent, ctx = {}, rand = Math.random) {
   if (intent === "start") {
-    return { text: `Oi! Eu sou o Papo Fofo. ${contextLine(ctx)} Em que posso ajudar?`, links: [], chips: MAIN_CHIPS };
+    return { text: `Oi${ctx.name ? `, ${ctx.name}` : ""}! Eu sou o Papo Fofo. ${contextLine(ctx)} Em que posso ajudar?`, links: [], chips: MAIN_CHIPS };
   }
 
   if (intent === "music") {

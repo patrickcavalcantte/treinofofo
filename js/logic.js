@@ -6,7 +6,7 @@ export const STORAGE_KEY = "treino-casa:v1";
 
 export function emptyState() {
   return { version: STATE_VERSION, history: [], levels: {}, draft: null, marks: [], weights: [],
-    meds: [], medLog: {}, meals: [], dietLog: {} };
+    meds: [], medLog: {}, meals: [], dietLog: {}, profile: null };
 }
 
 // ---------- Datas ----------
@@ -33,10 +33,19 @@ export function sessionsThisWeek(history, now) {
 
 // ---------- Agenda ----------
 
-export function nextWorkoutKey(history) {
-  if (!history.length) return "A";
-  const last = history[history.length - 1].workout;
-  return last === "A" ? "B" : "A";
+export const DEFAULT_ROTATION = ["A", "B"];
+
+/** Ordem dos treinos do perfil (onboarding). Sem perfil, o app alterna A e B. */
+export function rotationFor(state) {
+  const r = state.profile?.rotation;
+  return Array.isArray(r) && r.length && r.every((k) => WORKOUTS[k]) ? r : DEFAULT_ROTATION;
+}
+
+/** Próximo treino da rotação, depois do último feito. Se o último não está na rotação, volta ao começo dela. */
+export function nextWorkoutKey(history, rotation = DEFAULT_ROTATION) {
+  if (!history.length) return rotation[0];
+  const i = rotation.indexOf(history[history.length - 1].workout);
+  return i === -1 ? rotation[0] : rotation[(i + 1) % rotation.length];
 }
 
 export function restWarning(history, now) {
@@ -217,7 +226,13 @@ export function weeklyCounts(state, now, n = 12) {
 }
 
 /** Semanas seguidas batendo a meta. A semana atual só quebra a sequência quando acabar. */
-export function weekStreak(state, now, goal = WEEKLY_GOAL) {
+/** Meta de treinos por semana: a sugerida no onboarding, ou o padrão do app. */
+export function weeklyGoal(state) {
+  const n = state.profile?.perWeek;
+  return Number.isInteger(n) && n >= 1 && n <= 7 ? n : WEEKLY_GOAL;
+}
+
+export function weekStreak(state, now, goal = weeklyGoal(state)) {
   const weeks = weeklyCounts(state, now, 104);
   let i = weeks.length - 1;
   if (weeks[i].count < goal) i--; // semana atual ainda em andamento
@@ -475,6 +490,7 @@ export function mergeStates(a, b) {
     history: [...byDate.values()].sort((x, y) => x.date.localeCompare(y.date)),
     marks: [...new Set([...(a.marks ?? []), ...(b.marks ?? [])])].sort(),
     weights: mergeWeights(a.weights, b.weights),
+    profile: newer.profile ?? (newer === a ? b.profile : a.profile) ?? null,
     meds: mergeById(a.meds, b.meds),
     meals: mergeById(a.meals, b.meals),
     medLog: mergeLogs(newer === a ? b.medLog : a.medLog, newer.medLog),

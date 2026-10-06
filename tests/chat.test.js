@@ -77,3 +77,10 @@ describe("contextLine", () => {
     assert.match(s, /pesagem/);
   });
 });
+
+describe("saudação do chat", () => {
+  test("o chat chama a pessoa pelo nome quando existe", () => {
+    assert.match(reply("start", { name: "Patrick", done: 0, goal: 3 }).text, /^Oi, Patrick! Eu sou o Papo Fofo/);
+    assert.match(reply("start", { done: 0, goal: 3 }).text, /^Oi! Eu sou o Papo Fofo/);
+  });
+});

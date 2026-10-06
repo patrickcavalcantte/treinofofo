@@ -1,13 +1,15 @@
-import { EXERCISES, WORKOUTS, REST_SECONDS, WEEKLY_GOAL, CARDIO } from "./data.js";
+import { EXERCISES, WORKOUTS, REST_SECONDS, CARDIO } from "./data.js";
 import {
   createStore, nextWorkoutKey, restWarning, newDraft, draftProgress,
   finishSession, evaluateSets, lastEntryFor, imageFor, displayName, parseReps, parseKg,
-  startOfWeek, dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak, mergeStates, parseWeight, setWeight, weightLoggedThisWeek,
+  startOfWeek, dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak, mergeStates, weeklyGoal, rotationFor, parseWeight, setWeight, weightLoggedThisWeek,
   saveMed, removeMed, toggleDose, activeMeds, saveMeal, removeMeal, setMealStatus, activeMeals, importMeals,
 } from "./logic.js";
 import * as sync from "./sync.js";
 import { initChat } from "./chatui.js";
 import { esc } from "./dom.js";
+import { renderOnboarding, freshOnboarding, prevStep, nextStep } from "./onboardingview.js";
+import { GOALS, DISCLAIMER, SOURCES, EVIDENCE_LIMIT, buildProfile, skippedProfile, needsOnboarding, cleanName, greeting } from "./onboarding.js";
 import {
   renderMedsView, renderDietView, healthNotices, habitCards, renderMedsHabit, renderHormonesHabit, renderDietHabit,
 } from "./health.js";
@@ -17,7 +19,14 @@ const app = document.getElementById("app");
 const store = createStore(safeLocalStorage());
 let state = store.load();
 let view = state.draft ? "workout" : "home";
+let onb = null; // respostas do onboarding em andamento
 let editing = null; // { type: "med" | "meal", id } enquanto um formulário de remédio ou refeição está aberto
+/** Decide a primeira tela depois de entrar: onboarding (se ainda não há perfil), treino em andamento ou home. */
+function enterApp() {
+  if (needsOnboarding(state) && !state.draft) { onb = freshOnboarding(state.profile?.name ?? ""); view = "onboarding"; }
+  else view = state.draft ? "workout" : "home";
+}
+
 const newId = () => (crypto.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`);
 let chosenKey = null; // permite trocar A/B manualmente na home
 
@@ -38,30 +47,32 @@ const fmtKg = (kg) => (kg ?? "") === "" ? "" : String(kg).replace(".", ",");
 // ---------- Views ----------
 
 function renderHome() {
-  const key = chosenKey ?? nextWorkoutKey(state.history);
-  const other = key === "A" ? "B" : "A";
+  const rotation = rotationFor(state);
+  const key = chosenKey ?? nextWorkoutKey(state.history, rotation);
+  const others = rotation.filter((k) => k !== key);
   const w = WORKOUTS[key];
   const now = new Date();
   const done = weeklyCounts(state, now, 1)[0].count;
   const streak = weekStreak(state, now);
   const warning = restWarning(state.history, new Date());
 
-  const plates = Array.from({ length: WEEKLY_GOAL }, (_, i) =>
+  const plates = Array.from({ length: weeklyGoal(state) }, (_, i) =>
     `<span class="plate ${i < done ? "full" : ""}" aria-hidden="true"></span>`).join("");
 
   app.innerHTML = `
+    <p class="greeting">${esc(greeting(state.profile?.name, now))}</p>
     <h1 class="display">${esc(w.title)}</h1>
     <p class="lede">${esc(w.focus)}</p>
 
-    <div class="week" role="img" aria-label="${done} de ${WEEKLY_GOAL} treinos nesta semana">
-      ${plates}<span class="week-text">${Math.min(done, 99)} de ${WEEKLY_GOAL} na semana</span>
+    <div class="week" role="img" aria-label="${done} de ${weeklyGoal(state)} treinos nesta semana">
+      ${plates}<span class="week-text">${Math.min(done, 99)} de ${weeklyGoal(state)} na semana</span>
     </div>
 
     ${warning ? `<p class="notice">${esc(warning)}</p>` : ""}
     ${weightLoggedThisWeek(state, now) ? "" : `<p class="notice">${now.getDay() === 1 ? "Hoje é dia de pesagem." : "A pesagem da semana ainda não foi feita."} Suba na balança de manhã, em jejum e depois de ir ao banheiro. <button class="switch" data-action="go" data-view="weight">Registrar peso</button></p>`}
 
     <button class="cta" data-action="start" data-key="${key}">Começar ${esc(w.title)}</button>
-    <button class="switch" data-action="switch" data-key="${other}">Fazer o treino ${other} hoje</button>
+    <div class="switches">${others.map((k) => `<button class="switch" data-action="switch" data-key="${k}">Fazer o ${esc(WORKOUTS[k].title)} hoje</button>`).join("")}</div>
 
     <ul class="preview">
       <li><span>${esc(CARDIO.name)}</span><span>${CARDIO.minutes} min</span></li>
@@ -78,10 +89,10 @@ function renderHome() {
       <button class="cta ghost" data-action="go" data-view="meds">Remédios</button>
       <button class="cta ghost" data-action="go" data-view="diet">Dieta</button>
       <button class="cta ghost" data-action="go" data-view="weight">Peso</button>
-      <button class="cta ghost" data-action="go" data-view="history">Histórico</button>
     </div>
 
     ${healthNotices(state, now)}
+    ${state.profile?.goal ? `<p class="small account">Objetivo: ${esc(GOALS[state.profile.goal].label)} · ${weeklyGoal(state)} treinos por semana. <button class="switch" data-action="onb-restart">Refazer</button></p>` : `<p class="small account"><button class="switch" data-action="onb-restart">Receber uma sugestão de treino</button></p>`}
     ${sync.signedIn() ? `<p class="account small">Sincronizado como ${esc(sync.email())} · <button class="switch" data-action="signout">Sair</button></p>` : ""}
   `;
 }
@@ -258,21 +269,6 @@ function renderWorkout() {
   `;
 }
 
-function renderHistory() {
-  const items = [...state.history].reverse();
-  app.innerHTML = `
-    <div class="bar"><button class="back" data-action="go" data-view="home">‹ Voltar</button><span></span></div>
-    <h1 class="display">Histórico</h1>
-    ${items.length ? `<ul class="history">${items.map((s) => {
-      const lines = Object.entries(s.entries)
-        .filter(([, e]) => e.sets.some((x) => x.done))
-        .map(([id, e]) => `${esc(displayName(id, e.level))}: ${e.sets.filter((x) => x.done).map((x) => x.reps).join(", ")}`);
-      return `<li><strong>${esc(WORKOUTS[s.workout].title)}</strong> <span class="small">${esc(fmtDate(s.date))}</span>
-        <p class="small" style="margin:.375rem 0 0">${lines.join("<br>")}</p></li>`;
-    }).join("")}</ul>` : `<p class="lede">Nenhum treino concluído ainda. O primeiro aparece aqui assim que você terminar.</p>`}
-  `;
-}
-
 const HABIT_START = new Date(2026, 9, 1); // o calendário começa em outubro de 2026
 const CHART_SLOTS = 12;
 
@@ -283,19 +279,19 @@ const SVG_W = 320, SVG_H = 140, PAD = { l: 22, r: 8, t: 12, b: 22 };
 
 function renderChart(weeks) {
   const real = weeks.filter((w) => w.count !== null);
-  const max = Math.max(WEEKLY_GOAL, 7, ...real.map((w) => w.count));
+  const max = Math.max(weeklyGoal(state), 7, ...real.map((w) => w.count));
   const x = (i) => PAD.l + (i * (SVG_W - PAD.l - PAD.r)) / (weeks.length - 1);
   const y = (v) => SVG_H - PAD.b - (v * (SVG_H - PAD.t - PAD.b)) / max;
   const pts = weeks.flatMap((w, i) => w.count === null ? [] : [`${x(i).toFixed(1)},${y(w.count).toFixed(1)}`]);
   const label = (w) => w.start.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-  const alt = `Treinos por semana desde ${label(weeks[0])}: ${real.map((w) => w.count).join(", ")}. Meta: ${WEEKLY_GOAL}.`;
+  const alt = `Treinos por semana desde ${label(weeks[0])}: ${real.map((w) => w.count).join(", ")}. Meta: ${weeklyGoal(state)}.`;
   return `
     <svg class="chart" viewBox="0 0 ${SVG_W} ${SVG_H}" role="img" aria-label="${esc(alt)}">
-      <line class="goal" x1="${PAD.l}" x2="${SVG_W - PAD.r}" y1="${y(WEEKLY_GOAL)}" y2="${y(WEEKLY_GOAL)}"/>
-      <text class="axis" x="${PAD.l - 4}" y="${y(WEEKLY_GOAL) + 3}" text-anchor="end">${WEEKLY_GOAL}</text>
+      <line class="goal" x1="${PAD.l}" x2="${SVG_W - PAD.r}" y1="${y(weeklyGoal(state))}" y2="${y(weeklyGoal(state))}"/>
+      <text class="axis" x="${PAD.l - 4}" y="${y(weeklyGoal(state)) + 3}" text-anchor="end">${weeklyGoal(state)}</text>
       <text class="axis" x="${PAD.l - 4}" y="${y(0) + 3}" text-anchor="end">0</text>
       <polyline class="line" points="${pts.join(" ")}"/>
-      ${weeks.map((w, i) => w.count === null ? "" : `<circle class="dot ${w.count >= WEEKLY_GOAL ? "hit" : ""}" cx="${x(i).toFixed(1)}" cy="${y(w.count).toFixed(1)}" r="3.5"/>`).join("")}
+      ${weeks.map((w, i) => w.count === null ? "" : `<circle class="dot ${w.count >= weeklyGoal(state) ? "hit" : ""}" cx="${x(i).toFixed(1)}" cy="${y(w.count).toFixed(1)}" r="3.5"/>`).join("")}
       <text class="axis" x="${x(0)}" y="${SVG_H - 6}" text-anchor="start">${label(weeks[0])}</text>
       <text class="axis" x="${x(weeks.length - 1)}" y="${SVG_H - 6}" text-anchor="end">${label(weeks[weeks.length - 1])}</text>
     </svg>`;
@@ -346,8 +342,8 @@ function renderTrainingHabit(now) {
   const best = Math.max(...done.map((w) => w.count));
   return `
     <p class="lede">${streak > 0
-      ? `${streak} ${streak === 1 ? "semana seguida" : "semanas seguidas"} batendo a meta de ${WEEKLY_GOAL} treinos.`
-      : `Meta: ${WEEKLY_GOAL} treinos por semana. A sequência começa quando você fechar a primeira semana.`}</p>
+      ? `${streak} ${streak === 1 ? "semana seguida" : "semanas seguidas"} batendo a meta de ${weeklyGoal(state)} treinos.`
+      : `Meta: ${weeklyGoal(state)} treinos por semana. A sequência começa quando você fechar a primeira semana.`}</p>
 
     <div class="stats">
       <div><strong>${streak}</strong><span>semanas na meta</span></div>
@@ -369,7 +365,7 @@ function renderHabit() {
   const doneWeek = weeklyCounts(state, now, 1)[0].count;
   const pct = (v) => (v === null ? "–" : `${v}%`);
   const items = [
-    { id: "treino", name: "Treino", value: `${Math.min(doneWeek, 99)}/${WEEKLY_GOAL}`, label: "treinos esta semana", status: doneWeek >= WEEKLY_GOAL ? "ok" : "" },
+    { id: "treino", name: "Treino", value: `${Math.min(doneWeek, 99)}/${weeklyGoal(state)}`, label: "treinos esta semana", status: doneWeek >= weeklyGoal(state) ? "ok" : "" },
     { id: "remedios", name: "Remédios", value: cards.meds.has ? pct(cards.meds.pct) : "–", label: cards.meds.has ? "doses, 7 dias" : "nenhum cadastrado", status: "" },
     { id: "hormonios", name: "Hormônios", value: cards.hormones.value, label: cards.hormones.label, status: cards.hormones.status },
     { id: "dieta", name: "Dieta", value: cards.diet.has ? pct(cards.diet.pct) : "–", label: cards.diet.has ? "plano, 7 dias" : "nenhuma cadastrada", status: "" },
@@ -446,6 +442,13 @@ function renderGuide() {
     <article class="guide">
       <h1 class="display">Antes de começar</h1>
 
+      <h2>O app não substitui um profissional</h2>
+      <p>${esc(DISCLAIMER)}</p>
+
+      <h2>De onde vêm as sugestões de treino</h2>
+      <p>${esc(EVIDENCE_LIMIT)}</p>
+      <ol class="sources">${SOURCES.map((s) => `<li>${esc(s.text)} <a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">Abrir o artigo</a></li>`).join("")}</ol>
+
       <h2>Prepare o ambiente</h2>
       <ul class="checklist">
         <li>Pegue a sua garrafa d'água e deixe por perto.</li>
@@ -471,9 +474,9 @@ function renderGuide() {
 
 function render() {
   if (view === "login") renderLogin();
+  else if (view === "onboarding") app.innerHTML = renderOnboarding(onb);
   else if (view === "newpassword") renderNewPassword();
   else if (view === "workout" && state.draft) renderWorkout();
-  else if (view === "history") renderHistory();
   else if (view === "guide") renderGuide();
   else if (view === "habit") renderHabit();
   else if (view === "weight") renderWeight();
@@ -635,6 +638,31 @@ app.addEventListener("click", (e) => {
       const y = window.scrollY; render(); window.scrollTo(0, y);
       break;
     }
+    case "onb-pick": {
+      const { field, value } = t.dataset;
+      // Mudar uma resposta anterior invalida as seguintes, que dependem dela.
+      if (field === "gender" && onb.gender !== value) { onb.goal = null; onb.emphasis = null; onb.showAll = false; }
+      if (field === "goal" && onb.goal !== value) onb.emphasis = null;
+      onb[field] = value;
+      onb.step = nextStep(onb.step);
+      render(); window.scrollTo(0, 0);
+      break;
+    }
+    case "onb-more": onb.showAll = true; render(); break;
+    case "onb-back": onb.step = prevStep(onb.step); render(); window.scrollTo(0, 0); break;
+    case "onb-skip":
+      // Se a pessoa já digitou o nome nesta tela, guarda mesmo pulando o resto.
+      state = { ...state, profile: skippedProfile(new Date(), app.querySelector('input[name="name"]')?.value ?? onb?.name) };
+      persist(); onb = null; view = "home"; render(); window.scrollTo(0, 0);
+      break;
+    case "onb-finish":
+      state = { ...state, profile: buildProfile(onb, new Date()) };
+      chosenKey = state.profile.start;
+      persist(); onb = null; view = "home"; render(); window.scrollTo(0, 0);
+      break;
+    case "onb-restart":
+      onb = freshOnboarding(state.profile?.name ?? ""); view = "onboarding"; render(); window.scrollTo(0, 0);
+      break;
     case "habit-tab":
       habitTab = t.dataset.tab;
       { const y = window.scrollY; render(); window.scrollTo(0, y); }
@@ -770,12 +798,21 @@ app.addEventListener("submit", async (e) => {
     } else {
       await sync.signIn(email, password);
     }
-    view = state.draft ? "workout" : "home";
     await reconcile();
-    render();
+    enterApp();
+    render(); window.scrollTo(0, 0);
   } catch (err) {
     renderLogin(loginError(err), { email });
   }
+});
+
+app.addEventListener("submit", (e) => {
+  const nameForm = e.target.closest("form[data-action='onb-name']");
+  if (!nameForm) return;
+  e.preventDefault();
+  onb.name = cleanName(new FormData(nameForm).get("name")) ?? "";
+  onb.step = nextStep(onb.step);
+  render(); window.scrollTo(0, 0);
 });
 
 app.addEventListener("submit", (e) => {
@@ -853,9 +890,9 @@ app.addEventListener("submit", async (e) => {
   if (password.length < 8) return renderNewPassword("A senha precisa ter pelo menos 8 caracteres.");
   try {
     await sync.updatePassword(password);
-    view = state.draft ? "workout" : "home";
     await reconcile();
-    render();
+    enterApp();
+    render(); window.scrollTo(0, 0);
   } catch (err) {
     renderNewPassword(loginError(err));
   }
@@ -868,11 +905,11 @@ document.addEventListener("visibilitychange", () => {
 async function boot() {
   render();
   if (view === "workout") keepAwake(true);
-  if (!sync.enabled) return;
+  if (!sync.enabled) { if (needsOnboarding(state) && !state.draft) { enterApp(); render(); } return; }
   try {
     const user = await sync.start();
     if (user && sync.isRecovery()) { view = "newpassword"; render(); }
-    else if (user) { await reconcile(); render(); }
+    else if (user) { await reconcile(); if (needsOnboarding(state) && !state.draft) enterApp(); render(); }
     else { view = "login"; renderLogin(sync.linkExpired() ? "O link expirou. Toque em Esqueci minha senha para receber outro." : ""); }
   } catch (err) {
     console.warn("Sem conexão com o servidor. O app segue com os dados deste aparelho.", err);
@@ -882,9 +919,10 @@ initChat(() => {
   const now = new Date();
   return {
     done: weeklyCounts(state, now, 1)[0].count,
-    goal: WEEKLY_GOAL,
+    goal: weeklyGoal(state),
     streak: weekStreak(state, now),
     weightDue: !weightLoggedThisWeek(state, now),
+    name: state.profile?.name ?? null,
   };
 });
 
