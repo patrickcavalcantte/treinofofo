@@ -3,7 +3,7 @@ import {
   createStore, nextWorkoutKey, restWarning, newDraft, draftProgress,
   finishSession, evaluateSets, lastEntryFor, imageFor, displayName, parseReps, parseKg,
   startOfWeek, dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak, mergeStates, weeklyGoal, rotationFor, parseWeight, setWeight, weightLoggedThisWeek,
-  saveMed, removeMed, toggleDose, activeMeds, saveMeal, removeMeal, setMealStatus, activeMeals, importMeals, setDietPlan, clearDietPlan, activeDietPlan,
+  saveMed, removeMed, toggleDose, activeMeds, saveMeal, removeMeal, setMealStatus, activeMeals, dietDay, todayDoses, importMeals, setDietPlan, clearDietPlan, activeDietPlan,
 } from "./logic.js";
 import * as sync from "./sync.js";
 import { initChat } from "./chatui.js";
@@ -48,21 +48,21 @@ const fmtKg = (kg) => (kg ?? "") === "" ? "" : String(kg).replace(".", ",");
 
 // ---------- Views ----------
 
-function renderHome() {
+/** Tela do treino: o resumo do treino do dia, com o botão de começar. */
+function renderTreino() {
   const rotation = rotationFor(state);
   const key = chosenKey ?? nextWorkoutKey(state.history, rotation);
   const others = rotation.filter((k) => k !== key);
   const w = WORKOUTS[key];
   const now = new Date();
   const done = weeklyCounts(state, now, 1)[0].count;
-  const streak = weekStreak(state, now);
-  const warning = restWarning(state.history, new Date());
+  const warning = restWarning(state.history, now);
 
   const plates = Array.from({ length: weeklyGoal(state) }, (_, i) =>
     `<span class="plate ${i < done ? "full" : ""}" aria-hidden="true"></span>`).join("");
 
   app.innerHTML = `
-    <p class="greeting">${esc(greeting(state.profile?.name, now))}</p>
+    <div class="bar"><button class="back" data-action="go" data-view="home">‹ Voltar</button><span></span></div>
     <h1 class="display">${esc(w.title)}</h1>
     <p class="lede">${esc(w.focus)}</p>
 
@@ -71,7 +71,6 @@ function renderHome() {
     </div>
 
     ${warning ? `<p class="notice">${esc(warning)}</p>` : ""}
-    ${weightLoggedThisWeek(state, now) ? "" : `<p class="notice">${now.getDay() === 1 ? "Hoje é dia de pesagem." : "A pesagem da semana ainda não foi feita."} Suba na balança de manhã, em jejum e depois de ir ao banheiro. <button class="switch" data-action="go" data-view="weight">Registrar peso</button></p>`}
 
     <button class="cta" data-action="start" data-key="${key}">Começar ${esc(w.title)}</button>
     <div class="switches">${others.map((k) => `<button class="switch" data-action="switch" data-key="${k}">Fazer o ${esc(WORKOUTS[k].title)} hoje</button>`).join("")}</div>
@@ -83,22 +82,68 @@ function renderHome() {
         return `<li><span>${esc(ex.name)}</span><span>${ex.sets} × ${ex.repMin} a ${ex.repMax}</span></li>`;
       }).join("")}
     </ul>
-
-    <button class="cta ghost habit-link" data-action="go" data-view="habit">Hábito${streak > 0 ? ` · ${streak} ${streak === 1 ? "semana" : "semanas"} na meta` : ""}</button>
-
-    <div class="links">
-      <button class="cta ghost" data-action="go" data-view="guide">Antes de começar</button>
-      <button class="cta ghost" data-action="go" data-view="meds">Remédios</button>
-      <button class="cta ghost" data-action="go" data-view="diet">Dieta</button>
-      <button class="cta ghost" data-action="go" data-view="weight">Peso</button>
-    </div>
-
-    ${healthNotices(state, now)}
-    ${state.profile?.goal ? `<p class="small account">Objetivo: ${esc(GOALS[state.profile.goal].label)} · ${weeklyGoal(state)} treinos por semana. <button class="switch" data-action="onb-restart">Refazer</button></p>` : `<p class="small account"><button class="switch" data-action="onb-restart">Receber uma sugestão de treino</button></p>`}
-    ${sync.signedIn() ? `<p class="account small">Sincronizado como ${esc(sync.email())} · <button class="switch" data-action="signout">Sair</button></p>` : ""}
   `;
 }
 
+/** Painel inicial: um cartão por área, cada um com um resumo do dia. */
+function renderHome() {
+  const now = new Date();
+  const goal = weeklyGoal(state);
+  const done = weeklyCounts(state, now, 1)[0].count;
+  const streak = weekStreak(state, now);
+  const rotation = rotationFor(state);
+  const next = WORKOUTS[chosenKey ?? nextWorkoutKey(state.history, rotation)];
+
+  const doses = todayDoses(state, now);
+  const dosesTaken = doses.filter((d) => d.taken).length;
+  const meals = activeMeals(state);
+  const mealsMarked = dietDay(state, dayKey(now)).marked;
+  const lastWeight = (state.weights ?? []).at(-1);
+  const weighed = weightLoggedThisWeek(state, now);
+
+  const card = (view, name, value, label, extra = "") => `
+    <button type="button" class="home-card ${extra}" data-action="go" data-view="${view}">
+      <span class="home-card-name">${name}</span>
+      <strong>${esc(value)}</strong>
+      <span class="small">${esc(label)}</span>
+    </button>`;
+
+  const draftWorkout = state.draft ? WORKOUTS[state.draft.workout] : null;
+  const progress = state.draft ? draftProgress(state.draft) : null;
+  const treino = draftWorkout
+    ? `<button type="button" class="home-card hero treino resume" data-action="go" data-view="workout">
+        <span class="home-card-name">Treino em andamento</span>
+        <strong>${esc(draftWorkout.title)}</strong>
+        <span class="small">${progress.finished} de ${progress.total} exercícios · toque para continuar</span>
+      </button>`
+    : `<button type="button" class="home-card hero treino" data-action="go" data-view="treino">
+        <span class="home-card-name">Treino</span>
+        <strong>${esc(next.title)}</strong>
+        <span class="small">${esc(next.focus)} · ${Math.min(done, 99)} de ${goal} na semana</span>
+      </button>`;
+
+  const today = now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+
+  app.innerHTML = `
+    <h1 class="display">${esc(greeting(state.profile?.name, now))}</h1>
+    <p class="lede" style="text-transform:capitalize">${esc(today)}</p>
+
+    ${healthNotices(state, now, { hormonesOnly: true })}
+
+    <div class="home-cards">
+      ${treino}
+      ${card("habit", "Hábito", streak > 0 ? `${streak} ${streak === 1 ? "semana" : "semanas"}` : `${Math.min(done, 99)}/${goal}`, streak > 0 ? "seguidas na meta" : "treinos esta semana", "habito")}
+      ${card("diet", "Dieta", meals.length ? `${mealsMarked}/${meals.length}` : "–", meals.length ? "refeições marcadas hoje" : "anexe seu plano", "dieta")}
+      ${card("meds", "Remédios", doses.length ? `${dosesTaken}/${doses.length}` : "–", doses.length ? "doses de hoje" : "cadastre seus remédios", "remedios")}
+      ${card("weight", "Peso", lastWeight ? `${fmtKg(lastWeight.kg)} kg` : "–", lastWeight ? (weighed ? "pesado nesta semana" : "pesagem da semana pendente") : "registre seu peso", "peso")}
+    </div>
+
+    <button class="cta ghost" style="margin-top:1.25rem" data-action="go" data-view="guide">Antes de começar</button>
+
+    ${state.profile?.goal ? `<p class="small account">Objetivo: ${esc(GOALS[state.profile.goal].label)} · ${goal} treinos por semana. <button class="switch" data-action="onb-restart">Refazer</button></p>` : `<p class="small account"><button class="switch" data-action="onb-restart">Receber uma sugestão de treino</button></p>`}
+    ${sync.signedIn() ? `<p class="account small">Sincronizado como ${esc(sync.email())} · <button class="switch" data-action="signout">Sair</button></p>` : ""}
+  `;
+}
 function passwordField(name, autocomplete, label) {
   return `<label class="field-block">${label}
     <span class="pw">
@@ -482,6 +527,7 @@ function render() {
   else if (view === "guide") renderGuide();
   else if (view === "habit") renderHabit();
   else if (view === "weight") renderWeight();
+  else if (view === "treino") renderTreino();
   else if (view === "meds") app.innerHTML = renderMedsView(state, new Date(), editing);
   else if (view === "diet") app.innerHTML = renderDietView(state, new Date(), editing);
   else { view = "home"; renderHome(); }
@@ -713,6 +759,7 @@ app.addEventListener("click", (e) => {
     case "go":
       editing = null;
       view = t.dataset.view; render(); window.scrollTo(0, 0);
+      if (view === "workout") keepAwake(true); // voltando para um treino em andamento
       break;
     case "leave":
       view = "home"; render(); keepAwake(false); stopRest(); // rascunho continua salvo

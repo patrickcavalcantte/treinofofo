@@ -253,11 +253,12 @@ function planReview(editing) {
 }
 // ---------- Avisos na home ----------
 
-export function healthNotices(state, now) {
+/** Avisos da home. Com `hormonesOnly`, só os de remédios espaçados: o resto já aparece nos cartões do painel. */
+export function healthNotices(state, now, { hormonesOnly = false } = {}) {
   const out = [];
   const doses = todayDoses(state, now);
   const taken = doses.filter((d) => d.taken).length;
-  if (doses.length && taken < doses.length) {
+  if (!hormonesOnly && doses.length && taken < doses.length) {
     out.push(`Remédios de hoje: ${taken} de ${doses.length} tomados. <button class="switch" data-action="go" data-view="meds">Abrir</button>`);
   }
   for (const m of activeMeds(state).filter((x) => x.kind === "interval")) {
@@ -267,7 +268,7 @@ export function healthNotices(state, now) {
   }
   const meals = activeMeals(state);
   const { marked } = dietDay(state, dayKey(now));
-  if (meals.length && marked < meals.length) {
+  if (!hormonesOnly && meals.length && marked < meals.length) {
     out.push(`Dieta de hoje: ${marked} de ${meals.length} refeições marcadas. <button class="switch" data-action="go" data-view="diet">Abrir</button>`);
   }
   return out.map((html) => `<p class="notice">${html}</p>`).join("");
