@@ -182,7 +182,7 @@ export function renderDietView(state, now, editing) {
       </div>
       ${mealFoodsHtml(mealEntries, hideNumbers, today)}
       <button type="button" class="switch" data-action="food-add" data-meal="${esc(m.id)}" data-day="${today}">+ Adicionar alimento</button>
-      ${m.text ? mealPlanHtml(m.text) : storedPlan ? `<p class="small plan-hint">Esta refeição ainda não tem o texto do plano. <button type="button" class="switch" data-action="plan-reread">Preencher a partir do PDF</button></p>` : ""}
+      ${m.text ? `<button type="button" class="switch plan-link" data-action="plan-view" data-meal="${esc(m.id)}">Ver plano alimentar completo</button>` : storedPlan ? `<p class="small plan-hint">Esta refeição ainda não tem o texto do plano. <button type="button" class="switch" data-action="plan-reread">Preencher a partir do PDF</button></p>` : ""}
     </section>`; }).join("");
 
   const strip = renderStrip(now, (key) => {
@@ -194,7 +194,7 @@ export function renderDietView(state, now, editing) {
   });
 
   const manage = meals.map((m) => `
-    <li><div><strong>${esc(m.name)}</strong>${m.text ? `<p class="small meal-text" style="margin:.125rem 0 0">${esc(m.text)}</p>` : ""}</div>
+    <li><div><strong>${esc(m.name)}</strong>${m.text ? `<p class="small" style="margin:.125rem 0 0">Plano preenchido</p>` : ""}</div>
       <span class="row-actions">
         <button type="button" class="switch" data-action="meal-edit" data-id="${esc(m.id)}">Editar</button>
         <button type="button" class="switch danger" data-action="meal-delete" data-id="${esc(m.id)}">Apagar</button>
@@ -373,15 +373,16 @@ export function renderPlanView(state) {
   const meals = activeMeals(state).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).filter((m) => m.text);
   const section = (m) => {
     const time = parseMealPlan(m.text).time;
-    return `<section class="dbox-meal">
+    return `<section class="dbox-meal" id="plano-${esc(m.id)}">
       <header class="dbox-head"><h2>${esc(m.name)}</h2>${time ? `<span class="dbox-time">${esc(time)}</span>` : ""}</header>
       ${mealPlanHtml(m.text, { compact: false })}
     </section>`;
   };
   return `
-    <div class="bar"><button class="back" data-action="go" data-view="diet">‹ Dieta</button><span></span></div>
+    <div class="bar"><button class="back" data-action="go" data-view="diet">‹ Voltar à Dieta</button><span></span></div>
     <h1 class="display">Meu plano</h1>
-    ${meals.length ? `<p class="small" style="margin:0.5rem 0 0">Montado a partir do PDF do seu plano alimentar. Toque numa refeição em Dieta para marcar como foi.</p>${meals.map(section).join("")}` : `
+    ${meals.length ? `<p class="notice plan-readonly" role="note"><strong>Só para consulta.</strong> Veja o que o plano indica e escolha o que vai comer. Para contar as calorias, volte à Dieta e use "+ Adicionar alimento" com o que você de fato comeu.</p>${meals.map(section).join("")}
+      <button class="cta" type="button" data-action="go" data-view="diet">Voltar à Dieta</button>` : `
       <p class="lede">Nenhuma refeição tem o texto do plano ainda.</p>
       <p class="small">Em Dieta, anexe o PDF do plano para o app ler o que comer em cada refeição.</p>
       <button class="cta" type="button" data-action="go" data-view="diet">Ir para a Dieta</button>`}

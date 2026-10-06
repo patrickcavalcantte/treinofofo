@@ -1,4 +1,4 @@
-﻿import { test, describe } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { splitPlan, parseBlocks, parseMealPlan } from "../js/dietplan.js";
 import { mealPlanHtml, renderPlanView, renderDietView } from "../js/health.js";
@@ -171,11 +171,28 @@ describe("refeição sem texto, com o PDF guardado", () => {
     assert.match(html, /ainda não tem o texto do plano/);
     assert.match(html, /data-action="plan-reread">Preencher a partir do PDF/);
   });
-  test("com o texto preenchido, mostra o plano no lugar do aviso", () => {
+  test("com o texto preenchido, o cartão traz só um botão para o plano, e não os itens", () => {
     const html = renderDietView(withPlan("-Arroz (70g)\n-Feijão (70g)"), NOW, null);
     assert.doesNotMatch(html, /ainda não tem o texto do plano/);
-    assert.match(html, /dbox-qty">70g/);
+    assert.match(html, /data-action="plan-view" data-meal="m1">Ver plano alimentar completo/);
+    assert.doesNotMatch(html, /dbox-items|dbox-qty|Arroz/); // nada que pareça adicionável ao lado de "+ Adicionar alimento"
     assert.match(html, /data-view="plano">Ver plano completo/);
+  });
+  test("o botão do plano vem depois de + Adicionar alimento, e o cartão não repete o texto do plano", () => {
+    const html = renderDietView(withPlan("-Arroz (70g)"), NOW, null);
+    const add = html.indexOf("+ Adicionar alimento");
+    const view = html.indexOf("Ver plano alimentar completo");
+    assert.ok(add > 0 && view > add);
+    assert.doesNotMatch(html.slice(add, view + 80), /70g/);
+  });
+  test("cada refeição com texto tem o seu botão, apontando para ela", () => {
+    let s = saveMeal(emptyState(), { name: "Café", text: "-Pão (2 Fatias)" }, "m1", NOW);
+    s = saveMeal(s, { name: "Almoço", text: "-Arroz (70g)" }, "m2", NOW);
+    s = saveMeal(s, { name: "Jantar", text: "" }, "m3", NOW);
+    const html = renderDietView(s, NOW, null);
+    assert.match(html, /data-action="plan-view" data-meal="m1"/);
+    assert.match(html, /data-action="plan-view" data-meal="m2"/);
+    assert.doesNotMatch(html, /data-action="plan-view" data-meal="m3"/); // sem texto: nada para ver
   });
   test("o cartão do PDF ganha 'Reler o texto'", () => {
     assert.match(renderDietView(withPlan("-A"), NOW, null), /data-action="plan-reread">Reler o texto/);
@@ -202,5 +219,31 @@ describe("refeição sem texto, com o PDF guardado", () => {
     assert.doesNotMatch(html, /name="store"/);
     assert.equal((html.match(/name="meal"[^>]*checked/g) ?? []).length, 2); // Almoço e Ceia
     assert.equal((html.match(/name="meal"/g) ?? []).length, 3);
+  });
+});
+
+describe("tela do plano, só para consulta", () => {
+  const state = () => {
+    let s = saveMeal(emptyState(), { name: "Café", text: "-Pão (2 Fatias)" }, "m1", NOW);
+    return saveMeal(s, { name: "Almoço", text: "-Arroz (70g) ou -Feijão (70g)" }, "m2", NOW);
+  };
+  test("avisa que é só para consulta e diz como registrar o que comeu", () => {
+    const html = renderPlanView(state());
+    assert.match(html, /Só para consulta/);
+    assert.match(html, /volte à Dieta e use "\+ Adicionar alimento"/);
+  });
+  test("não tem nenhum botão de marcar nem de adicionar alimento: nada que pareça registrar", () => {
+    const html = renderPlanView(state());
+    assert.doesNotMatch(html, /data-action="meal"|data-action="food-add"|data-action="food-pick"|data-action="plan-view"/);
+  });
+  test("cada refeição tem um id para o botão levar direto a ela", () => {
+    const html = renderPlanView(state());
+    assert.match(html, /<section class="dbox-meal" id="plano-m1">/);
+    assert.match(html, /<section class="dbox-meal" id="plano-m2">/);
+  });
+  test("tem o botão de voltar à Dieta no topo e no fim", () => {
+    const html = renderPlanView(state());
+    assert.match(html, /data-view="diet">‹ Voltar à Dieta/);
+    assert.match(html, /<button class="cta" type="button" data-action="go" data-view="diet">Voltar à Dieta/);
   });
 });

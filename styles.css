@@ -588,7 +588,6 @@ h3.slot { font-family: var(--wide); font-stretch: 112%; font-size: 1rem; color: 
 
 .meal-details { margin-top: 0.75rem; }
 .meal-details .meal-text { margin: 0.5rem 0 0; font-size: 0.9375rem; }
-.manage .meal-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* ---------- Painel do Hábito ---------- */
 
@@ -785,3 +784,20 @@ h3.slot { font-family: var(--wide); font-stretch: 112%; font-size: 1rem; color: 
 .dbox-sub .dbox-items, .dbox-sub .dbox-prep, .dbox-sub .dbox-note, .dbox-sub .dbox-ou { margin-left: 0.75rem; margin-right: 0.75rem; }
 .dbox-sub-title { padding: 0.375rem 0.75rem; background: color-mix(in srgb, var(--ok) 18%, var(--surface)); font-weight: 700; font-size: 0.9375rem; text-align: center; }
 .meal-plan.dbox .dbox-items li { font-size: 0.9375rem; }
+/* ---------- Hidratação ---------- */
+
+.ring.water { --accent: #38BDF8; }
+.home-card.agua { --accent: #38BDF8; }
+.water-quick { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+.water-custom { margin-top: 1rem; display: grid; gap: 0.5rem; }
+.water-custom .field-block { margin: 0; }
+.water-custom .cta { margin: 0; }
+.water-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.375rem; margin-top: 0.75rem; align-items: end; }
+.water-day { display: grid; gap: 0.25rem; text-align: center; }
+.water-bar { height: 5rem; border-radius: 0.5rem; background: var(--line); display: flex; align-items: flex-end; overflow: hidden; }
+.water-bar span { display: block; width: 100%; background: #38BDF8; border-radius: 0.5rem 0.5rem 0 0; min-height: 2px; }
+.water-bar span.full { background: var(--ok); }
+.water-day.today .small { font-weight: 800; color: var(--ink); }
+.dbox-meal { scroll-margin-top: 4.5rem; }
+.plan-link { margin: 0.5rem 0 0; display: inline-block; }
+.plan-readonly { margin-top: 1rem; }

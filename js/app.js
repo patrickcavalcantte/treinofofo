@@ -9,6 +9,8 @@ import * as sync from "./sync.js";
 import { initChat } from "./chatui.js";
 import { esc } from "./dom.js";
 import { versionLabel } from "./version.js";
+import { renderWater, waterCard } from "./hydrationview.js";
+import { addWater, removeWater, saveHydration } from "./hydration.js";
 import { renderTour, needsTour, finishTour } from "./tour.js";
 import { renderNutri, renderNutriSetup, renderFood, renderFoodResults, foodPreview } from "./nutriview.js";
 import { saveNutrition, dailyTargets, addFoodEntry, removeFoodEntry, saveCustomFood, activeCustomFoods, parseTaco, parseMarcas, latestWeightKg, unitOf } from "./nutrition.js";
@@ -154,6 +156,7 @@ function renderHome() {
   const dosesTaken = doses.filter((d) => d.taken).length;
   const meals = activeMeals(state);
   const mealsMarked = dietDay(state, dayKey(now)).marked;
+  const water = waterCard(state, now, dayKey(now));
   const lastWeight = (state.weights ?? []).at(-1);
   const weighed = weightLoggedThisWeek(state, now);
 
@@ -191,6 +194,7 @@ function renderHome() {
       ${card("habit", "Hábito", streak > 0 ? `${streak} ${streak === 1 ? "semana" : "semanas"}` : `${Math.min(done, 99)}/${goal}`, streak > 0 ? "seguidas na meta" : "treinos esta semana", "habito")}
       ${card("diet", "Dieta", meals.length ? `${mealsMarked}/${meals.length}` : "–", meals.length ? "refeições marcadas hoje" : "anexe seu plano", "dieta")}
       ${card("meds", "Remédios", doses.length ? `${dosesTaken}/${doses.length}` : "–", doses.length ? "doses de hoje" : "cadastre seus remédios", "remedios")}
+      ${card("agua", "Água", water.value, water.label, "agua")}
       ${card("weight", "Peso", lastWeight ? `${fmtKg(lastWeight.kg)} kg` : "–", lastWeight ? (weighed ? "pesado nesta semana" : "pesagem da semana pendente") : "registre seu peso", "peso")}
     </div>
 
@@ -588,6 +592,7 @@ function render() {
   else if (view === "habit") renderHabit();
   else if (view === "weight") renderWeight();
   else if (view === "treino") renderTreino();
+  else if (view === "agua") app.innerHTML = renderWater(state, new Date(), todayKey());
   else if (view === "plano") app.innerHTML = renderPlanView(state);
   else if (view === "nutri") app.innerHTML = renderNutri(state, new Date(), nutriDay ?? todayKey(), todayKey());
   else if (view === "nutri-setup") app.innerHTML = renderNutriSetup(state, new Date(), setupDraft?.values ?? null, setupDraft?.errors ?? []);
@@ -799,6 +804,24 @@ app.addEventListener("click", (e) => {
       sync.downloadPlan(plan.path)
         .then((blob) => readPlan(new File([blob], plan.name, { type: "application/pdf" }), { stored: true }))
         .catch(() => { editing = null; render(); alert("Não foi possível baixar o PDF agora. Anexe o arquivo de novo em Trocar."); });
+      break;
+    }
+    case "water-add": {
+      state = addWater(state, t.dataset.ml, todayKey(), newId(), new Date());
+      persist();
+      { const y = window.scrollY; render(); window.scrollTo(0, y); }
+      break;
+    }
+    case "water-remove": {
+      state = removeWater(state, t.dataset.day, t.dataset.id, new Date());
+      persist();
+      { const y = window.scrollY; render(); window.scrollTo(0, y); }
+      break;
+    }
+    case "plan-view": { // abre o plano completo (só consulta) já na refeição que a pessoa estava vendo
+      view = "plano"; editing = null; render();
+      const target = t.dataset.meal ? document.getElementById(`plano-${t.dataset.meal}`) : null;
+      if (target) target.scrollIntoView({ block: "start" }); else window.scrollTo(0, 0);
       break;
     }
     case "plan-cancel": pendingPlan = null; editing = null; render(); break;
@@ -1045,6 +1068,20 @@ app.addEventListener("submit", async (e) => {
 });
 
 app.addEventListener("submit", (e) => {
+  const waterForm = e.target.closest("form[data-action='water-custom'], form[data-action='water-goal']");
+  if (waterForm) {
+    e.preventDefault();
+    const fd = new FormData(waterForm);
+    try {
+      if (waterForm.dataset.action === "water-custom") state = addWater(state, fd.get("ml"), todayKey(), newId(), new Date());
+      else state = saveHydration(state, { goalMl: fd.get("goalMl") }, new Date());
+      persist(); render(); window.scrollTo(0, window.scrollY);
+    } catch (err) {
+      const msg = document.getElementById("water-msg");
+      if (msg) msg.textContent = err.message;
+    }
+    return;
+  }
   const form = e.target.closest("form[data-action='nutri-save'], form[data-action='food-save'], form[data-action='food-custom-save']");
   if (!form) return;
   e.preventDefault();

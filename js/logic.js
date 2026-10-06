@@ -7,7 +7,7 @@ export const STORAGE_KEY = "treino-casa:v1";
 export function emptyState() {
   return { version: STATE_VERSION, history: [], levels: {}, draft: null, marks: [], weights: [],
     meds: [], medLog: {}, meals: [], dietLog: {}, profile: null, dietPlan: null,
-    nutrition: null, foodLog: {}, customFoods: [], tour: null };
+    nutrition: null, foodLog: {}, customFoods: [], tour: null, waterLog: {}, hydration: null };
 }
 
 // ---------- Datas ----------
@@ -529,6 +529,8 @@ export function mergeStates(a, b) {
     dietPlan: latestAt(a.dietPlan, b.dietPlan),
     nutrition: latestBy(a.nutrition, b.nutrition),
     tour: latestBy(a.tour, b.tour),
+    hydration: latestBy(a.hydration, b.hydration),
+    waterLog: mergeDays(a.waterLog, b.waterLog),
     customFoods: mergeById(a.customFoods, b.customFoods),
     foodLog: mergeDays(a.foodLog, b.foodLog),
     meds: mergeById(a.meds, b.meds),
