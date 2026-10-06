@@ -6,7 +6,7 @@ export const STORAGE_KEY = "treino-casa:v1";
 
 export function emptyState() {
   return { version: STATE_VERSION, history: [], levels: {}, draft: null, marks: [], weights: [],
-    meds: [], medLog: {}, meals: [], dietLog: {}, profile: null };
+    meds: [], medLog: {}, meals: [], dietLog: {}, profile: null, dietPlan: null };
 }
 
 // ---------- Datas ----------
@@ -398,6 +398,19 @@ export function saveMeal(state, data, id, now) {
   return { ...state, meals: [...(state.meals ?? []).filter((m) => m.id !== id), meal] };
 }
 
+/** Plano alimentar anexado (PDF guardado na conta). Só os dados do arquivo ficam no estado; o PDF fica no armazenamento. */
+export function setDietPlan(state, { name, size, path }, now) {
+  const cleanName = String(name ?? "plano.pdf").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 120) || "plano.pdf";
+  return { ...state, dietPlan: { name: cleanName, size: Number(size) || 0, path: path ?? null, at: new Date(now).toISOString() } };
+}
+
+/** Remove o anexo deixando um marcador, para a remoção também valer nos outros aparelhos. */
+export function clearDietPlan(state, now) {
+  return { ...state, dietPlan: { removed: true, at: new Date(now).toISOString() } };
+}
+
+export const activeDietPlan = (state) => (state.dietPlan && !state.dietPlan.removed && state.dietPlan.path ? state.dietPlan : null);
+
 /** Importa refeições de uma lista [{ name, text }]. Nomes que já existem são ignorados, então importar de novo não duplica. */
 export function importMeals(state, list, now, makeId) {
   if (!Array.isArray(list) || !list.length) throw new Error("O arquivo precisa ser uma lista de refeições.");
@@ -471,6 +484,13 @@ function mergeLogs(older = {}, newer = {}) {
   return out;
 }
 
+/** Entre dois valores com carimbo `at`, vale o mais recente. */
+function latestAt(a, b) {
+  if (!a) return b ?? null;
+  if (!b) return a;
+  return (a.at ?? "") >= (b.at ?? "") ? a : b;
+}
+
 function mergeWeights(a = [], b = []) {
   const byWeek = new Map();
   for (const w of [...b, ...a]) {
@@ -491,6 +511,7 @@ export function mergeStates(a, b) {
     marks: [...new Set([...(a.marks ?? []), ...(b.marks ?? [])])].sort(),
     weights: mergeWeights(a.weights, b.weights),
     profile: newer.profile ?? (newer === a ? b.profile : a.profile) ?? null,
+    dietPlan: latestAt(a.dietPlan, b.dietPlan),
     meds: mergeById(a.meds, b.meds),
     meals: mergeById(a.meals, b.meals),
     medLog: mergeLogs(newer === a ? b.medLog : a.medLog, newer.medLog),

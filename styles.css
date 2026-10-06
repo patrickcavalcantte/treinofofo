@@ -641,3 +641,7 @@ h3.slot { font-family: var(--wide); font-stretch: 112%; font-size: 1rem; color: 
 .evidence .small { margin: 0.75rem 0 0; }
 .evidence a, .sources a { color: var(--cobalt); }
 .sources { padding-left: 1.25rem; display: grid; gap: 0.75rem; font-size: 0.9375rem; max-width: 62ch; }
+.plan-card { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; background: var(--surface); border-radius: 1rem; padding: 0.875rem 1rem; }
+.plan-card strong { overflow-wrap: anywhere; }
+.file-link { cursor: pointer; margin: 0; display: inline-block; text-decoration: underline; color: var(--cobalt); font-size: 0.9375rem; }
+.file-link:focus-within { outline: 3px solid var(--cobalt); outline-offset: 2px; }

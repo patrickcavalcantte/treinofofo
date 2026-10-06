@@ -55,6 +55,31 @@ export async function updatePassword(password) {
   window.history.replaceState(null, "", window.location.pathname);
 }
 
+// Plano alimentar em PDF: bucket privado "planos", uma pasta por usuário (ver supabase/storage.sql).
+const BUCKET = "planos";
+
+export async function uploadPlan(file) {
+  const c = await getClient();
+  const path = `${user.id}/dieta.pdf`;
+  const { error } = await c.storage.from(BUCKET).upload(path, file, { upsert: true, contentType: "application/pdf" });
+  if (error) throw error;
+  return path;
+}
+
+/** Link temporário (5 minutos) para abrir o PDF. */
+export async function planUrl(path) {
+  const c = await getClient();
+  const { data, error } = await c.storage.from(BUCKET).createSignedUrl(path, 300);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+export async function removePlan(path) {
+  const c = await getClient();
+  const { error } = await c.storage.from(BUCKET).remove([path]);
+  if (error) throw error;
+}
+
 /** Redireciona para o Google e volta para esta mesma página já com a sessão. */
 export async function signInWithGoogle() {
   const c = await getClient();

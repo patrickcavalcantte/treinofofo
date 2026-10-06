@@ -3,11 +3,12 @@ import {
   createStore, nextWorkoutKey, restWarning, newDraft, draftProgress,
   finishSession, evaluateSets, lastEntryFor, imageFor, displayName, parseReps, parseKg,
   startOfWeek, dayKey, trainedDays, toggleMark, weeklyCounts, weekStreak, mergeStates, weeklyGoal, rotationFor, parseWeight, setWeight, weightLoggedThisWeek,
-  saveMed, removeMed, toggleDose, activeMeds, saveMeal, removeMeal, setMealStatus, activeMeals, importMeals,
+  saveMed, removeMed, toggleDose, activeMeds, saveMeal, removeMeal, setMealStatus, activeMeals, importMeals, setDietPlan, clearDietPlan, activeDietPlan,
 } from "./logic.js";
 import * as sync from "./sync.js";
 import { initChat } from "./chatui.js";
 import { esc } from "./dom.js";
+import { loadPdfjs, extractTextItems, detectMeals, validatePdf } from "./dietplan.js";
 import { renderOnboarding, freshOnboarding, prevStep, nextStep } from "./onboardingview.js";
 import { GOALS, DISCLAIMER, SOURCES, EVIDENCE_LIMIT, buildProfile, skippedProfile, needsOnboarding, cleanName, greeting } from "./onboarding.js";
 import {
@@ -19,6 +20,7 @@ const app = document.getElementById("app");
 const store = createStore(safeLocalStorage());
 let state = store.load();
 let view = state.draft ? "workout" : "home";
+let pendingPlan = null; // PDF escolhido, à espera da confirmação do usuário
 let onb = null; // respostas do onboarding em andamento
 let editing = null; // { type: "med" | "meal", id } enquanto um formulário de remédio ou refeição está aberto
 /** Decide a primeira tela depois de entrar: onboarding (se ainda não há perfil), treino em andamento ou home. */
@@ -638,6 +640,25 @@ app.addEventListener("click", (e) => {
       const y = window.scrollY; render(); window.scrollTo(0, y);
       break;
     }
+    case "plan-cancel": pendingPlan = null; editing = null; render(); break;
+    case "plan-open": {
+      const plan = activeDietPlan(state);
+      if (!plan) break;
+      const tab = window.open("", "_blank"); // abre já, no toque, para o navegador não bloquear
+      sync.planUrl(plan.path)
+        .then((url) => { if (tab) tab.location.href = url; else window.location.href = url; })
+        .catch(() => { tab?.close(); alert("Não foi possível abrir o PDF agora."); });
+      break;
+    }
+    case "plan-remove": {
+      const plan = activeDietPlan(state);
+      if (plan && confirm("Remover o PDF da sua conta? As refeições cadastradas continuam.")) {
+        sync.removePlan(plan.path)
+          .then(() => { state = clearDietPlan(state, new Date()); persist(); render(); })
+          .catch(() => alert("Não foi possível remover o PDF agora."));
+      }
+      break;
+    }
     case "onb-pick": {
       const { field, value } = t.dataset;
       // Mudar uma resposta anterior invalida as seguintes, que dependem dela.
@@ -806,6 +827,33 @@ app.addEventListener("submit", async (e) => {
   }
 });
 
+app.addEventListener("submit", async (e) => {
+  const planForm = e.target.closest("form[data-action='plan-save']");
+  if (!planForm) return;
+  e.preventDefault();
+  const fd = new FormData(planForm);
+  const chosen = fd.getAll("meal");
+  const store = fd.get("store") === "on" && pendingPlan?.file;
+  const msg = planForm.querySelector(".login-msg");
+  const button = planForm.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    let next = state;
+    if (chosen.length) next = importMeals(next, chosen.map((name) => ({ name, text: "" })), new Date(), newId).state;
+    if (store) {
+      msg.textContent = "Enviando o PDF...";
+      const path = await sync.uploadPlan(pendingPlan.file);
+      next = setDietPlan(next, { name: pendingPlan.file.name, size: pendingPlan.file.size, path }, new Date());
+    }
+    state = next; // só aplica no fim: se o envio falhar, nada fica pela metade
+    persist(); pendingPlan = null; editing = null;
+    render(); window.scrollTo(0, 0);
+  } catch (err) {
+    button.disabled = false;
+    msg.textContent = `Não foi possível guardar o PDF agora. ${err.message ?? ""}`.trim();
+  }
+});
+
 app.addEventListener("submit", (e) => {
   const nameForm = e.target.closest("form[data-action='onb-name']");
   if (!nameForm) return;
@@ -839,20 +887,32 @@ app.addEventListener("submit", (e) => {
 });
 
 app.addEventListener("change", async (e) => {
-  if (e.target.dataset.action === "meal-import") {
+  if (e.target.dataset.action === "plan-file") {
     const file = e.target.files?.[0];
+    e.target.value = ""; // permite escolher o mesmo arquivo de novo
     if (!file) return;
+    try { validatePdf(file); } catch (err) { alert(err.message); return; }
+    pendingPlan = { file };
+    editing = { type: "plan", loading: true };
+    render(); window.scrollTo(0, 0);
+    let names = [];
+    let note = "";
     try {
-      const result = importMeals(state, JSON.parse(await file.text()), new Date(), newId);
-      state = result.state;
-      persist(); render();
-      alert(result.added ? `${result.added} refeições importadas.` : "Essas refeições já estavam cadastradas.");
+      const items = await extractTextItems(new Uint8Array(await file.arrayBuffer()), await loadPdfjs());
+      names = detectMeals(items);
+      if (!items.length) note = "Esse PDF não tem texto que dê para ler (pode ser uma foto). Guarde o arquivo e cadastre as refeições à mão.";
     } catch (err) {
-      alert(err instanceof SyntaxError ? "Esse arquivo não é um JSON válido." : err.message);
+      console.warn("Não foi possível ler o PDF.", err);
+      note = "Não consegui ler o PDF agora. Você ainda pode guardar o arquivo e cadastrar as refeições à mão.";
     }
+    const have = new Set(activeMeals(state).map((m) => m.name.toLowerCase()));
+    editing = {
+      type: "plan", note, canStore: sync.signedIn(),
+      names: names.filter((n) => !have.has(n.toLowerCase())), skipped: names.filter((n) => have.has(n.toLowerCase())),
+    };
+    render();
     return;
-  }
-  if (e.target.name !== "kind") return;
+  }  if (e.target.name !== "kind") return;
   const form = e.target.closest("form");
   const interval = e.target.value === "interval";
   form.querySelector(".kind-daily").hidden = interval;

@@ -1,7 +1,7 @@
 // Telas de remédios e dieta. Só montam HTML a partir do estado; os eventos ficam em app.js.
 import { esc } from "./dom.js";
 import {
-  SLOTS, UNITS, doseHistory, activeMeds, activeMeals, todayDoses, intervalStatus, medAdherence, medDay,
+  SLOTS, UNITS, doseHistory, activeMeds, activeMeals, activeDietPlan, todayDoses, intervalStatus, medAdherence, medDay,
   dietAdherence, dietDay, dayKey, startOfWeek,
 } from "./logic.js";
 
@@ -195,22 +195,62 @@ export function renderDietView(state, now, editing) {
 
   const editingMeal = editing?.type === "meal" ? meals.find((m) => m.id === editing.id) ?? null : null;
 
+  const plan = activeDietPlan(state);
+  const planCard = plan ? `
+      <div class="plan-card">
+        <div><strong>${esc(plan.name)}</strong><p class="small" style="margin:.125rem 0 0">${formatSize(plan.size)} · anexado em ${fmtDay(dayKey(new Date(plan.at)))}</p></div>
+        <span class="row-actions">
+          <button type="button" class="switch" data-action="plan-open">Abrir</button>
+          <label class="switch file-link">Trocar<input type="file" accept="application/pdf,.pdf" data-action="plan-file" hidden></label>
+          <button type="button" class="switch danger" data-action="plan-remove">Remover</button>
+        </span>
+      </div>` : `
+      <p class="small" style="margin:0 0 0.75rem">Anexe o PDF do seu plano alimentar. O app lê os nomes das refeições para você marcar a cada dia e guarda o arquivo na sua conta, para você abrir quando quiser.</p>
+      <label class="cta ghost file-btn">Anexar plano em PDF<input type="file" accept="application/pdf,.pdf" data-action="plan-file" hidden></label>`;
+
+  const body = editing?.type === "plan" ? planReview(editing)
+    : editing?.type === "meal" ? mealForm(editingMeal)
+    : `
+      ${meals.length ? `<h2 class="section">Hoje</h2>${todayHtml}
+      <h2 class="section">Adesão</h2>${stats(a7, a30, "Segui vale 100%, em parte 50% e fora 0%. Dias sem marcação contam como 0%. O dia de hoje só entra depois da primeira marcação.")}${strip}` : ""}
+      <h2 class="section">Meu plano em PDF</h2>
+      ${planCard}
+      <h2 class="section">Minhas refeições</h2>
+      ${manage ? `<ul class="manage">${manage}</ul>` : ""}
+      <button class="cta ${meals.length ? "ghost" : ""}" type="button" data-action="meal-new">Adicionar refeição</button>`;
+
   return `
     <div class="bar"><button class="back" data-action="go" data-view="home">‹ Voltar</button><span></span></div>
     <h1 class="display">Dieta</h1>
-    ${meals.length ? "" : `<p class="lede">Cadastre as refeições do seu plano e marque, a cada dia, como foi.</p>`}
-    ${editing?.type === "meal" ? mealForm(editingMeal) : `
-      ${meals.length ? `<h2 class="section">Hoje</h2>${todayHtml}
-      <h2 class="section">Adesão</h2>${stats(a7, a30, "Segui vale 100%, em parte 50% e fora 0%. Dias sem marcação contam como 0%. O dia de hoje só entra depois da primeira marcação.")}${strip}` : ""}
-      <h2 class="section">Minhas refeições</h2>
-      ${manage ? `<ul class="manage">${manage}</ul>` : ""}
-      <button class="cta ${meals.length ? "ghost" : ""}" type="button" data-action="meal-new">Adicionar refeição</button>
-      <label class="cta ghost file-btn">Importar plano de um arquivo (.json)
-        <input type="file" accept="application/json,.json" data-action="meal-import" hidden>
-      </label>`}
+    ${meals.length || editing ? "" : `<p class="lede">Anexe o PDF do seu plano ou cadastre as refeições, e marque a cada dia como foi.</p>`}
+    ${body}
   `;
 }
 
+function formatSize(bytes) {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+/** Revisão depois de ler o PDF: escolhe quais refeições criar e se guarda o arquivo. */
+function planReview(editing) {
+  if (editing.loading) return `<h2>Lendo o PDF...</h2><p class="small" role="status">Isso leva alguns segundos.</p>`;
+  const names = editing.names ?? [];
+  return `
+    <form class="login" data-action="plan-save" novalidate>
+      <h2>Plano em PDF</h2>
+      ${names.length ? `<fieldset class="choice"><legend>Refeições encontradas no PDF</legend>
+        ${names.map((n) => `<label><input type="checkbox" name="meal" value="${esc(n)}" checked> ${esc(n)}</label>`).join("")}
+      </fieldset>` : `<p>${editing.skipped?.length ? "As refeições do PDF já estão cadastradas." : "Não encontrei os nomes das refeições nesse PDF. Você pode guardar o arquivo e adicionar as refeições à mão."}</p>`}
+      ${editing.note ? `<p class="small">${esc(editing.note)}</p>` : ""}
+      <fieldset class="choice">
+        <label><input type="checkbox" name="store" ${editing.canStore ? "checked" : "disabled"}> Guardar o PDF na minha conta</label>
+        <p class="small" style="margin:0">${editing.canStore ? "Só você acessa o arquivo. Ele pode ter dados pessoais, como o nome do profissional. Dá para remover quando quiser." : "Entre na sua conta para guardar o arquivo."}</p>
+      </fieldset>
+      <p class="login-msg" role="status">${esc(editing.error ?? "")}</p>
+      <button class="cta" type="submit">Confirmar</button>
+      <button class="cta ghost" type="button" data-action="plan-cancel">Cancelar</button>
+    </form>`;
+}
 // ---------- Avisos na home ----------
 
 export function healthNotices(state, now) {
