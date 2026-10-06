@@ -2,7 +2,7 @@
 import { esc } from "./dom.js";
 import {
   TABLES, CREDIT_OPTIONS, MIN_MINUTES, MAX_MINUTES, ACTIVITY_SOURCE, ACTIVITY_DISCLAIMER,
-  activityPrefs, activityEntries, activityTotals, activityCredit, activityKcal, favoriteList, searchActivities,
+  activityPrefs, activityEntries, activityTotals, activityCredit, activityKcal, favoriteList, searchActivities, norm,
 } from "./activities.js";
 
 const MAX_RESULTS = 40;

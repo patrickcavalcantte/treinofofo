@@ -5,6 +5,7 @@ import {
   TABLES, activityKcal, activityPrefs, saveActivityPrefs, addActivity, removeActivity, activityEntries, activityTotals, activityCredit,
   addFavorite, removeFavorite, activeFavorites, favoriteList, parseActivities, findActivity, searchActivities, norm, SYNONYMS,
 } from "../js/activities.js";
+import { renderActivities, renderActivityResults, activityCard } from "../js/activityview.js";
 import { emptyState, setWeight, mergeStates, dayKey } from "../js/logic.js";
 import { saveNutrition, kcalBudget } from "../js/nutrition.js";
 
@@ -158,5 +159,30 @@ describe("sincronização", () => {
     const legacy = { version: 1, history: [], levels: {}, draft: null, savedAt: "2026-10-01T10:00:00Z" };
     const m = mergeStates(legacy, { ...emptyState(), savedAt: "2026-10-02T10:00:00Z" });
     assert.deepEqual([m.activityLog, m.favActivities, m.activityPrefs], [{}, [], null]);
+  });
+});
+
+describe("tela", () => {
+  const bad = (html) => /undefined|NaN|\[object|Infinity/.test(html);
+  const ctx = (extra = {}) => ({ query: "", selected: null, minutes: "", alias: "", error: null, ...extra });
+  test("abre com a tabela carregada, com e sem busca, sem erro de renderização", () => {
+    for (const query of ["", "forro", "xyzxyz"]) {
+      const html = renderActivities(withKg(70), ctx({ query }), data, false, NOW, KEY);
+      assert.equal(bad(html), false, query);
+      assert.match(html, /Registrar atividade/);
+    }
+    assert.match(renderActivityResults(data.adulto, "forro"), /Dança cultural/);
+    assert.match(renderActivityResults(data.adulto, "forro"), /salve como favorita/);
+  });
+  test("mostra o aviso de carregando enquanto a tabela não chegou", () => {
+    assert.match(renderActivities(withKg(70), ctx(), null, true, NOW, KEY), /Carregando a tabela/);
+  });
+  test("com atividade escolhida, mostra duração e favorita; o cartão da home resume o dia", () => {
+    const a = { ...data.adulto[0], label: data.adulto[0].pt };
+    const html = renderActivities(withKg(70), ctx({ selected: a, minutes: "30" }), data, false, NOW, KEY);
+    assert.match(html, /Duração/); assert.match(html, /Salvar como favorita/); assert.match(html, /≈ \d+ kcal/);
+    const s = addActivity(withKg(70), { ...forro, minutes: 60 }, KEY, "a", NOW);
+    assert.deepEqual(activityCard(s, KEY), { value: "60 min", label: "315 kcal gastas hoje" });
+    assert.equal(bad(renderActivities(s, ctx(), data, false, NOW, KEY)), false);
   });
 });
