@@ -11,6 +11,10 @@ import { esc } from "./dom.js";
 import { versionLabel } from "./version.js";
 import { renderWater, waterCard } from "./hydrationview.js";
 import { addWater, removeWater, saveHydration } from "./hydration.js";
+import { renderActivities, renderActivityResults, activityCard, activityPreview } from "./activityview.js";
+import {
+  parseActivities, findActivity, addActivity, removeActivity, addFavorite, removeFavorite, saveActivityPrefs, activityPrefs, favoriteList,
+} from "./activities.js";
 import { renderTour, needsTour, finishTour } from "./tour.js";
 import { renderNutri, renderNutriSetup, renderFood, renderFoodResults, foodPreview } from "./nutriview.js";
 import { saveNutrition, dailyTargets, addFoodEntry, removeFoodEntry, saveCustomFood, activeCustomFoods, parseTaco, parseMarcas, latestWeightKg, unitOf } from "./nutrition.js";
@@ -45,6 +49,20 @@ async function loadTaco() {
     .then(([taco, marcas]) => { tacoFoods = [...parseMarcas(marcas), ...parseTaco(taco)]; })
     .catch((err) => { tacoLoading = null; throw err; });
   await tacoLoading;
+}
+
+// Atividades: tabela do Compendium (carregada só quando alguém abre a tela) e a busca em andamento.
+let activitiesData = null;
+let activitiesLoading = null;
+let actCtx = null; // { query, selected, minutes, alias, error }
+const actItems = () => activitiesData?.[activityPrefs(state).table] ?? [];
+
+async function loadActivities() {
+  if (activitiesData) return;
+  activitiesLoading ??= fetchJson("assets/atividades.json")
+    .then((json) => { activitiesData = parseActivities(json); })
+    .catch((err) => { activitiesLoading = null; throw err; });
+  await activitiesLoading;
 }
 
 let pendingPlan = null; // PDF escolhido, à espera da confirmação do usuário
@@ -157,6 +175,7 @@ function renderHome() {
   const meals = activeMeals(state);
   const mealsMarked = dietDay(state, dayKey(now)).marked;
   const water = waterCard(state, now, dayKey(now));
+  const act = activityCard(state, dayKey(now));
   const lastWeight = (state.weights ?? []).at(-1);
   const weighed = weightLoggedThisWeek(state, now);
 
@@ -195,6 +214,7 @@ function renderHome() {
       ${card("diet", "Dieta", meals.length ? `${mealsMarked}/${meals.length}` : "–", meals.length ? "refeições marcadas hoje" : "anexe seu plano", "dieta")}
       ${card("meds", "Remédios", doses.length ? `${dosesTaken}/${doses.length}` : "–", doses.length ? "doses de hoje" : "cadastre seus remédios", "remedios")}
       ${card("agua", "Água", water.value, water.label, "agua")}
+      ${card("ativ", "Atividades", act.value, act.label, "atividades")}
       ${card("weight", "Peso", lastWeight ? `${fmtKg(lastWeight.kg)} kg` : "–", lastWeight ? (weighed ? "pesado nesta semana" : "pesagem da semana pendente") : "registre seu peso", "peso")}
     </div>
 
@@ -593,6 +613,7 @@ function render() {
   else if (view === "weight") renderWeight();
   else if (view === "treino") renderTreino();
   else if (view === "agua") app.innerHTML = renderWater(state, new Date(), todayKey());
+  else if (view === "ativ" && actCtx) app.innerHTML = renderActivities(state, actCtx, activitiesData, !activitiesData, new Date(), todayKey());
   else if (view === "plano") app.innerHTML = renderPlanView(state);
   else if (view === "nutri") app.innerHTML = renderNutri(state, new Date(), nutriDay ?? todayKey(), todayKey());
   else if (view === "nutri-setup") app.innerHTML = renderNutriSetup(state, new Date(), setupDraft?.values ?? null, setupDraft?.errors ?? []);
@@ -812,6 +833,30 @@ app.addEventListener("click", (e) => {
       { const y = window.scrollY; render(); window.scrollTo(0, y); }
       break;
     }
+    case "act-pick": {
+      const a = findActivity(activitiesData, t.dataset.code, t.dataset.table);
+      if (a) { actCtx.selected = { ...a, label: t.dataset.label || a.pt }; actCtx.error = null; actCtx.minutes = ""; actCtx.alias = ""; }
+      render(); window.scrollTo(0, 0);
+      break;
+    }
+    case "act-unpick": actCtx.selected = null; actCtx.error = null; render(); break;
+    case "act-min": {
+      actCtx.minutes = t.dataset.min;
+      const input = document.getElementById("act-min");
+      if (input) input.value = actCtx.minutes;
+      document.getElementById("act-preview").innerHTML = activityPreview(actCtx.selected, actCtx.minutes, latestWeightKg(state));
+      break;
+    }
+    case "act-remove":
+      state = removeActivity(state, t.dataset.day, t.dataset.id, new Date());
+      persist();
+      { const y = window.scrollY; render(); window.scrollTo(0, y); }
+      break;
+    case "act-unfav":
+      state = removeFavorite(state, t.dataset.id, new Date());
+      persist();
+      { const y = window.scrollY; render(); window.scrollTo(0, y); }
+      break;
     case "water-remove": {
       state = removeWater(state, t.dataset.day, t.dataset.id, new Date());
       persist();
@@ -911,6 +956,12 @@ app.addEventListener("click", (e) => {
     case "go":
       editing = null;
       if (t.dataset.view === "nutri") nutriDay = null;
+      if (t.dataset.view === "ativ") {
+        actCtx = { query: "", selected: null, minutes: "", alias: "", error: null };
+        loadActivities()
+          .then(() => { if (view === "ativ") render(); })
+          .catch(() => { if (actCtx) actCtx.error = "Não foi possível carregar a tabela de atividades agora."; if (view === "ativ") render(); });
+      }
       view = t.dataset.view; render(); window.scrollTo(0, 0);
       if (view === "workout") keepAwake(true); // voltando para um treino em andamento
       break;
@@ -1082,6 +1133,33 @@ app.addEventListener("submit", (e) => {
     }
     return;
   }
+  const actForm = e.target.closest("form[data-action='act-save'], form[data-action='act-fav'], form[data-action='act-prefs']");
+  if (actForm) {
+    e.preventDefault();
+    const fd = new FormData(actForm);
+    const now = new Date();
+    try {
+      const kind = actForm.dataset.action;
+      if (kind === "act-prefs") {
+        state = saveActivityPrefs(state, { table: fd.get("table"), creditPct: fd.get("creditPct") }, now);
+        actCtx.selected = null;
+      } else if (kind === "act-fav") {
+        const a = actCtx.selected;
+        state = addFavorite(state, { code: a.code, table: a.table, alias: fd.get("alias") }, newId(), now);
+        actCtx.selected = null;
+      } else {
+        actCtx.minutes = String(fd.get("minutes") ?? "");
+        const a = actCtx.selected;
+        state = addActivity(state, { code: a.code, name: a.label ?? a.pt, met: a.met, table: a.table, minutes: actCtx.minutes }, todayKey(), newId(), now);
+        actCtx.selected = null; actCtx.query = "";
+      }
+      actCtx.error = null;
+      persist(); render(); window.scrollTo(0, 0);
+    } catch (err) {
+      actCtx.error = err.message; render();
+    }
+    return;
+  }
   const form = e.target.closest("form[data-action='nutri-save'], form[data-action='food-save'], form[data-action='food-custom-save']");
   if (!form) return;
   e.preventDefault();
@@ -1122,6 +1200,16 @@ app.addEventListener("submit", (e) => {
 });
 
 app.addEventListener("input", (e) => {
+  if (view === "ativ" && actCtx) {
+    if (e.target.id === "act-q") {
+      actCtx.query = e.target.value;
+      if (activitiesData) document.getElementById("act-results").innerHTML = renderActivityResults(actItems(), actCtx.query);
+    } else if (e.target.id === "act-min" && actCtx.selected) {
+      actCtx.minutes = e.target.value;
+      document.getElementById("act-preview").innerHTML = activityPreview(actCtx.selected, actCtx.minutes, latestWeightKg(state));
+    }
+    return;
+  }
   if (view !== "food" || !foodCtx) return;
   if (e.target.id === "food-q") {
     foodCtx.query = e.target.value;

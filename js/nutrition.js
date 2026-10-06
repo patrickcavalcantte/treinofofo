@@ -1,6 +1,8 @@
 // Metas de nutrição e registro de alimentos. Funções puras, testadas em tests/nutrition.test.js.
 // Tudo aqui é ESTIMATIVA GERAL para adultos saudáveis. Não substitui nutricionista nem orientação médica.
 
+import { activityCredit } from "./activities.js";
+
 export const NUTRITION_DISCLAIMER =
   "As metas são estimativas gerais para adultos saudáveis e não substituem um nutricionista. Se você tem uma condição de saúde, está grávida ou amamentando, ou tem histórico de transtorno alimentar, siga a orientação de quem acompanha você.";
 
@@ -307,10 +309,13 @@ export function kcalBudget(state, now, dayKey) {
   if (!result.ok) return { ok: false, reason: "incompleto", errors: result.errors };
   const target = result.targets.energy_kcal;
   const eaten = Math.round(dayTotals(state, dayKey).totals.energy_kcal);
-  const remaining = target - eaten;
+  // Atividades registradas viram crédito: a pessoa pode comer essa parte a mais. A barra de progresso usa a meta já somada.
+  const credit = activityCredit(state, dayKey);
+  const allowed = target + credit;
+  const remaining = allowed - eaten;
   return {
-    ok: true, target, eaten, remaining, over: remaining < 0, pct: Math.min(100, Math.round((eaten / target) * 100)),
-    status: intakeStatus(eaten, target), hide: state.nutrition.hideNumbers === true, goal: state.nutrition.goal, warnings: result.warnings,
+    ok: true, target, credit, allowed, eaten, remaining, over: remaining < 0, pct: Math.min(100, Math.round((eaten / allowed) * 100)),
+    status: intakeStatus(eaten, allowed), hide: state.nutrition.hideNumbers === true, goal: state.nutrition.goal, warnings: result.warnings,
   };
 }
 

@@ -6,6 +6,8 @@ import {
   emptyState, dayKey, saveMed, toggleDose, saveMeal, setMealStatus, setWeight,
 } from "./logic.js";
 import { saveNutrition, addFoodEntry } from "./nutrition.js";
+import { addActivity, addFavorite } from "./activities.js";
+import { activityGlance } from "./activityview.js";
 import { nutriGlance } from "./nutriview.js";
 import { medsGlance, dietGlance, habitCards } from "./health.js";
 
@@ -57,6 +59,11 @@ export function demoState(now = new Date()) {
   eat("demo-m2", FOODS.arroz, 150, "demo-e3");
   eat("demo-m2", FOODS.feijao, 100, "demo-e4");
   eat("demo-m2", FOODS.frango, 120, "demo-e5");
+  // Valores de MET do Compendium (03025 e 05060); os nomes são só o apelido que a pessoa daria.
+  s = addActivity(s, { code: "03025", name: "Forró de sábado", met: 4.5, table: "adulto", minutes: 60 }, day(0), "demo-a1", now);
+  s = addActivity(s, { code: "05060", name: "Compras no mercado", met: 3.3, table: "adulto", minutes: 20 }, day(0), "demo-a2", now);
+  s = addFavorite(s, { code: "03025", table: "adulto", alias: "Forró de sábado" }, "demo-f1", now);
+  s = addFavorite(s, { code: "17082", table: "adulto", alias: "Trilha com a turma" }, "demo-f2", now);
   return s;
 }
 
@@ -106,6 +113,12 @@ export const SLIDES = [
     id: "nutrientes", title: "Calorias, macros e vitaminas",
     text: "Registre o que você comeu, com a tabela TACO e produtos de marca, e acompanhe calorias, proteínas, carboidratos, gorduras, vitaminas e minerais contra as suas metas.",
     preview: (s, now) => nutriGlance(s, now, dayKey(now)),
+  },
+  {
+    id: "atividades", title: "Todo movimento conta",
+    text: "Dança, trilha, escalada, faxina, compras no mercado: registre qualquer atividade e o gasto vira crédito de calorias no dia. Salve as suas favoritas com o seu nome e ache rápido. Tem tabela própria para quem usa cadeira de rodas.",
+    caption: "Exemplo com dados fictícios. Foto: Força Aérea dos EUA, domínio público.",
+    preview: (s, now) => `<img class="tour-photo" src="assets/cadeirante-basquete.jpg" alt="Pessoas jogando basquete em cadeira de rodas em uma quadra" width="720" height="481">${activityGlance(s, dayKey(now))}`,
   },
   {
     id: "remedios", title: "Remédios e adesão",

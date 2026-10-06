@@ -801,3 +801,8 @@ h3.slot { font-family: var(--wide); font-stretch: 112%; font-size: 1rem; color: 
 .dbox-meal { scroll-margin-top: 4.5rem; }
 .plan-link { margin: 0.5rem 0 0; display: inline-block; }
 .plan-readonly { margin-top: 1rem; }
+/* Atividades físicas */
+.fav-row { display: flex; gap: 0.5rem; align-items: stretch; }
+.fav-row > button:first-child { flex: 1; }
+.fav-row .switch { width: auto; flex: none; align-self: center; }
+.tour-photo { display: block; width: 100%; height: auto; border-radius: 0.875rem; margin-bottom: 0.75rem; }

@@ -259,7 +259,8 @@ function budgetBanner(state, now, today) {
   }
   return `<div class="budget ${b.over ? "over" : ""}" role="status" aria-label="${b.over ? `${num(-b.remaining)} calorias acima da meta` : `Restam ${num(b.remaining)} calorias hoje`}">
       <div class="budget-nums">
-        <span>Meta <strong>${num(b.target)}</strong></span>
+        <span>Meta <strong>${num(b.target)}</strong></span>${b.credit ? `
+        <span>Atividades <strong>+${num(b.credit)}</strong></span>` : ""}
         <span>Registrado <strong>${num(b.eaten)}</strong></span>
         <span>${b.over ? "Acima" : "Restam"} <strong>${num(Math.abs(b.remaining))}</strong></span>
       </div>

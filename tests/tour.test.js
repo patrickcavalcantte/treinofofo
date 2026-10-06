@@ -14,9 +14,9 @@ const bad = (html) => /undefined|NaN|\[object|Infinity/.test(html);
 const flat = (html) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
 describe("passos do tour", () => {
-  test("são cinco, e cobrem fotos dos exercícios, dieta, nutrientes, remédios e hábito", () => {
-    assert.equal(SLIDES.length, 5);
-    assert.deepEqual(SLIDES.map((s) => s.id), ["treino", "dieta", "nutrientes", "remedios", "habito"]);
+  test("são seis, e cobrem fotos dos exercícios, dieta, nutrientes, atividades, remédios e hábito", () => {
+    assert.equal(SLIDES.length, 6);
+    assert.deepEqual(SLIDES.map((s) => s.id), ["treino", "dieta", "nutrientes", "atividades", "remedios", "habito"]);
     for (const s of SLIDES) { assert.ok(s.title && s.text.length > 40, s.id); assert.equal(typeof s.preview, "function"); }
   });
   test("todo passo tem o botão Pular, e só o primeiro não tem Voltar", () => {
@@ -40,11 +40,11 @@ describe("passos do tour", () => {
     }
   });
   test("indica o passo atual para leitores de tela e fica dentro dos limites", () => {
-    assert.match(renderTour(0, NOW), /aria-label="Passo 1 de 5"/);
-    assert.match(renderTour(4, NOW), /aria-label="Passo 5 de 5"/);
-    assert.match(renderTour(-3, NOW), /Passo 1 de 5/);
-    assert.match(renderTour(99, NOW), /Passo 5 de 5/);
-    assert.match(renderTour("x", NOW), /Passo 1 de 5/);
+    assert.match(renderTour(0, NOW), /aria-label="Passo 1 de 6"/);
+    assert.match(renderTour(5, NOW), /aria-label="Passo 6 de 6"/);
+    assert.match(renderTour(-3, NOW), /Passo 1 de 6/);
+    assert.match(renderTour(99, NOW), /Passo 6 de 6/);
+    assert.match(renderTour("x", NOW), /Passo 1 de 6/);
   });
   test("nenhuma tela do tour traz undefined, NaN ou objeto solto", () => {
     for (let i = 0; i < SLIDES.length; i++) assert.equal(bad(renderTour(i, NOW)), false, `passo ${i}`);
@@ -97,13 +97,22 @@ describe("dados fictícios", () => {
     demoState(NOW);
     assert.deepEqual(real, emptyState());
   });
+  test("o passo das atividades mostra a foto livre, o crédito e as favoritas", () => {
+    const html = renderTour(3, NOW);
+    assert.match(html, /assets\/cadeirante-basquete\.jpg/);
+    assert.ok(existsSync(join(root, "assets/cadeirante-basquete.jpg")));
+    assert.match(flat(html), /domínio público/);
+    assert.match(flat(html), /Crédito de \d+ kcal/);
+    assert.match(flat(html), /Forró de sábado/);
+    assert.match(flat(html), /cadeira de rodas/);
+  });
   test("as telas de exemplo mostram números", () => {
     assert.match(flat(renderTour(2, NOW)), /de \d[\d.]* kcal/);
     assert.match(flat(renderTour(2, NOW)), /Restam/);
     assert.match(flat(renderTour(1, NOW)), /Meta .*Registrado .*Restam/);
-    assert.match(flat(renderTour(3, NOW)), /Hormônio/);
-    assert.match(flat(renderTour(3, NOW)), /em \d+ dias/);
-    assert.match(flat(renderTour(4, NOW)), /\d+%/);
+    assert.match(flat(renderTour(4, NOW)), /Hormônio/);
+    assert.match(flat(renderTour(4, NOW)), /em \d+ dias/);
+    assert.match(flat(renderTour(5, NOW)), /\d+%/);
   });
 });
 

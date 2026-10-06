@@ -83,8 +83,9 @@ export function renderNutri(state, now, day, todayKey) {
   const { totals, missing, count } = dayTotals(state, day);
   const t = result.targets;
   const kcal = totals.energy_kcal;
-  const pct = Math.min(100, Math.round((kcal / t.energy_kcal) * 100));
-  const kcalStatus = intakeStatus(kcal, t.energy_kcal);
+  const allowed = t.energy_kcal + kcalBudget(state, now, day).credit; // meta + crédito das atividades do dia
+  const pct = Math.min(100, Math.round((kcal / allowed) * 100));
+  const kcalStatus = intakeStatus(kcal, allowed);
   const meals = new Map(activeMeals(state).map((m) => [m.id, m.name]));
   const entries = entriesOf(state, day);
   const row = (id, extra = {}) => {
@@ -100,8 +101,8 @@ export function renderNutri(state, now, day, todayKey) {
     </div>
 
     <div class="ring-wrap">
-      <div class="ring" style="--pct:${pct}" role="img" aria-label="${hide ? esc(`Calorias: ${STATUS_TEXT[kcalStatus]}`) : `Calorias: ${num(kcal)} de ${num(t.energy_kcal)}`}">
-        <div class="ring-inner">${hide ? `<strong>${esc(STATUS_TEXT[kcalStatus])}</strong>` : `<strong>${num(kcal)}</strong><span class="small">de ${num(t.energy_kcal)} kcal</span>`}</div>
+      <div class="ring" style="--pct:${pct}" role="img" aria-label="${hide ? esc(`Calorias: ${STATUS_TEXT[kcalStatus]}`) : `Calorias: ${num(kcal)} de ${num(allowed)}`}">
+        <div class="ring-inner">${hide ? `<strong>${esc(STATUS_TEXT[kcalStatus])}</strong>` : `<strong>${num(kcal)}</strong><span class="small">de ${num(allowed)} kcal</span>`}</div>
       </div>
     </div>
     ${budgetLine(kcalBudget(state, now, day), hide)}
@@ -154,7 +155,7 @@ export function budgetLine(b, hide) {
   if (hide) return `<p class="budget-line" role="status">${esc(STATUS_TEXT[b.status] ? `Hoje você está ${STATUS_TEXT[b.status]}.` : "")}</p>`;
   const goalText = b.goal === "perder" || b.goal === "perder_devagar" ? "para perder peso" : b.goal === "ganhar" || b.goal === "ganhar_devagar" ? "para ganhar massa" : "para manter o peso";
   return `<p class="budget-line" role="status"><strong>${b.over ? `${num(-b.remaining)} kcal acima da meta` : `Restam ${num(b.remaining)} kcal`}</strong><br>
-    <span class="small">Meta de ${num(b.target)} kcal ${esc(goalText)} · ${num(b.eaten)} registradas</span></p>`;
+    <span class="small">Meta de ${num(b.target)} kcal ${esc(goalText)}${b.credit ? ` + ${num(b.credit)} kcal de atividades` : ""} · ${num(b.eaten)} registradas</span></p>`;
 }
 
 function disclaimer() {

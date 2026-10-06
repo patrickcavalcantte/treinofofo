@@ -92,5 +92,9 @@ export function renderOnboarding(onb) {
       ${plan.notes.map((n) => `<p class="plan-note">${esc(n)}</p>`).join("")}
     </section>
     ${evidenceBox(plan)}
+    <section class="onb-extra">
+      <img class="tour-photo" src="assets/cadeirante-basquete.jpg" alt="Pessoas jogando basquete em cadeira de rodas em uma quadra" width="720" height="481" loading="lazy">
+      <p class="small"><strong>Faz outras atividades?</strong> Em Atividades você registra dança, trilha, escalada, faxina ou compras, salva as suas favoritas com o seu nome, e o gasto vira crédito de calorias no dia. Tem tabela para quem usa cadeira de rodas. Foto: Força Aérea dos EUA, domínio público.</p>
+    </section>
     <button class="cta" type="button" data-action="onb-finish">Começar</button>`;
 }

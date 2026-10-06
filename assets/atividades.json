@@ -1,0 +1,1026 @@
+{
+ "source": "Compendium of Physical Activities: 2024 Adult Compendium e 2024 Adult Wheelchair Compendium (Herrmann SD, Willis EA, Ainsworth BE et al. J Sport Health Sci 2024; pacompendium.com). Os valores de MET foram copiados sem alteração; os nomes em português são traduções do projeto.",
+ "note": "MET é o gasto de energia da atividade em múltiplos do repouso (1 MET). Valores médios, medidos em pesquisas com adultos.",
+ "tables": {
+  "adulto": {
+   "label": "Adultos (19 a 59 anos)",
+   "factor": 1,
+   "items": [
+    {
+     "code": "17152",
+     "met": 2.8,
+     "group": "Caminhada",
+     "pt": "Caminhada lenta (3,2 a 3,9 km/h)",
+     "en": "Walking, 2.0 to 2.4 mph, level, slow pace, firm surface"
+    },
+    {
+     "code": "17190",
+     "met": 3.8,
+     "group": "Caminhada",
+     "pt": "Caminhada em ritmo moderado (4,5 a 5,5 km/h)",
+     "en": "Walking, 2.8 to 3.4 mph, level, moderate pace, firm surface"
+    },
+    {
+     "code": "17200",
+     "met": 4.8,
+     "group": "Caminhada",
+     "pt": "Caminhada rápida, para exercício (5,6 a 6,3 km/h)",
+     "en": "Walking, 3.5 to 3.9 mph, level, brisk, firm surface, walking for exercise"
+    },
+    {
+     "code": "17220",
+     "met": 5.5,
+     "group": "Caminhada",
+     "pt": "Caminhada muito rápida (6,4 a 7,1 km/h)",
+     "en": "Walking, 4.0 to 4.4 mph (6.4 to 7.1 km/h), level, firm surface, very brisk pace"
+    },
+    {
+     "code": "17352",
+     "met": 3.5,
+     "group": "Caminhada",
+     "pt": "Esteira, caminhada a 4,0 a 4,7 km/h",
+     "en": "Walking, treadmill, 2.5 to 2.9 mph (4.0 to 4.7 km/h), 0% grade"
+    },
+    {
+     "code": "17358",
+     "met": 4.8,
+     "group": "Caminhada",
+     "pt": "Esteira, caminhada a 5,6 a 6,3 km/h",
+     "en": "Walking, treadmill, 3.5 to 3.9 mph (5.6 to 6.3 km/h), 0% grade"
+    },
+    {
+     "code": "16060",
+     "met": 3.5,
+     "group": "Caminhada",
+     "pt": "Caminhar para ir a algum lugar, ritmo moderado",
+     "en": "Walking for transportation, 2.8-3.2 mph, level, moderate pace, firm surface"
+    },
+    {
+     "code": "17081",
+     "met": 3.8,
+     "group": "Trilha e escada",
+     "pt": "Trilha leve, andando devagar, sem carga",
+     "en": "Hiking slowly or ambling through fields and hillsides, no load"
+    },
+    {
+     "code": "17082",
+     "met": 5.3,
+     "group": "Trilha e escada",
+     "pt": "Trilha em ritmo normal, sem carga",
+     "en": "Hiking or walking at a normal pace through fields and hillsides, no load"
+    },
+    {
+     "code": "17080",
+     "met": 6,
+     "group": "Trilha e escada",
+     "pt": "Trilha, caminhada em terreno natural (cross country)",
+     "en": "Hiking, cross country (Taylor Code 040)"
+    },
+    {
+     "code": "17012",
+     "met": 7.8,
+     "group": "Trilha e escada",
+     "pt": "Trilha com mochila de passeio",
+     "en": "Backpacking, hiking with a daypack, organized walking with daypack"
+    },
+    {
+     "code": "17034",
+     "met": 5.3,
+     "group": "Trilha e escada",
+     "pt": "Subida de morro, sem carga, inclinação leve (1 a 5%)",
+     "en": "Climbing hills, no load, 1 to 5% grade, moderate-to-brisk pace"
+    },
+    {
+     "code": "17035",
+     "met": 7,
+     "group": "Trilha e escada",
+     "pt": "Subida de morro, sem carga, inclinação de 6 a 10%",
+     "en": "Climbing hills, no load, 6 to 10% grade, moderate-to-brisk pace"
+    },
+    {
+     "code": "17133",
+     "met": 4.5,
+     "group": "Trilha e escada",
+     "pt": "Subir escadas, ritmo lento",
+     "en": "Stair climbing, slow pace"
+    },
+    {
+     "code": "17131",
+     "met": 6.8,
+     "group": "Trilha e escada",
+     "pt": "Subir escadas, ritmo geral",
+     "en": "Stair climbing, general"
+    },
+    {
+     "code": "12020",
+     "met": 7.5,
+     "group": "Corrida",
+     "pt": "Corrida leve (jogging), ritmo livre",
+     "en": "Jogging, general, self-selected pace"
+    },
+    {
+     "code": "12028",
+     "met": 6.5,
+     "group": "Corrida",
+     "pt": "Corrida a cerca de 6,5 km/h (13 min por milha)",
+     "en": "Running, 4 to 4.2 mph (13 min/mile)"
+    },
+    {
+     "code": "12030",
+     "met": 8.5,
+     "group": "Corrida",
+     "pt": "Corrida a cerca de 8 km/h",
+     "en": "Running, 5.0 to 5.2 mph (12 min/mile)"
+    },
+    {
+     "code": "12050",
+     "met": 9.3,
+     "group": "Corrida",
+     "pt": "Corrida a 9,7 a 10,1 km/h",
+     "en": "Running, 6-6.3 mph (10 min/mile)"
+    },
+    {
+     "code": "12070",
+     "met": 11,
+     "group": "Corrida",
+     "pt": "Corrida a cerca de 11,3 km/h",
+     "en": "Running, 7 mph (8.5 min/mile)"
+    },
+    {
+     "code": "12090",
+     "met": 12,
+     "group": "Corrida",
+     "pt": "Corrida a cerca de 12,9 km/h",
+     "en": "Running, 8 mph (7.5 min/mile)"
+    },
+    {
+     "code": "01018",
+     "met": 3.5,
+     "group": "Bicicleta",
+     "pt": "Bicicleta, passeio lento (cerca de 9 km/h)",
+     "en": "Bicycling, leisure 5.5 mph"
+    },
+    {
+     "code": "01019",
+     "met": 5.8,
+     "group": "Bicicleta",
+     "pt": "Bicicleta, passeio (cerca de 15 km/h)",
+     "en": "Bicycling, leisure, 9.4 mph"
+    },
+    {
+     "code": "01030",
+     "met": 8,
+     "group": "Bicicleta",
+     "pt": "Bicicleta, esforço moderado (19 a 22 km/h)",
+     "en": "Bicycling, 12-13.9 mph, leisure, moderate effort"
+    },
+    {
+     "code": "01040",
+     "met": 10,
+     "group": "Bicicleta",
+     "pt": "Bicicleta, rápida (22 a 25 km/h)",
+     "en": "Bicycling, 14-15.9 mph, racing or leisure, fast, vigorous effort"
+    },
+    {
+     "code": "16002",
+     "met": 6.8,
+     "group": "Bicicleta",
+     "pt": "Bicicleta para ir a algum lugar, esforço moderado",
+     "en": "Bicycling for transportation, moderate effort"
+    },
+    {
+     "code": "01216",
+     "met": 5,
+     "group": "Bicicleta",
+     "pt": "Bicicleta ergométrica, leve a moderada (60 W)",
+     "en": "Bicycling, stationary, 60 watts, light to moderate effort"
+    },
+    {
+     "code": "01224",
+     "met": 6.8,
+     "group": "Bicicleta",
+     "pt": "Bicicleta ergométrica, 101 a 125 W",
+     "en": "Bicycling, stationary, 101-125 watts"
+    },
+    {
+     "code": "01270",
+     "met": 9,
+     "group": "Bicicleta",
+     "pt": "Aula de spinning",
+     "en": "Bicycling, stationary, RPM/Spin bike class"
+    },
+    {
+     "code": "18240",
+     "met": 5.8,
+     "group": "Natação e água",
+     "pt": "Natação, crawl lento, recreativa",
+     "en": "Swimming laps, freestyle, slow, recreational"
+    },
+    {
+     "code": "18290",
+     "met": 8,
+     "group": "Natação e água",
+     "pt": "Natação, crawl em ritmo médio",
+     "en": "Swimming, crawl, medium speed, ~50 yards/minute, vigorous effort"
+    },
+    {
+     "code": "18230",
+     "met": 9.8,
+     "group": "Natação e água",
+     "pt": "Natação, crawl rápido",
+     "en": "Swimming laps, freestyle, fast, vigorous effort"
+    },
+    {
+     "code": "18265",
+     "met": 5.3,
+     "group": "Natação e água",
+     "pt": "Natação, peito, recreativa",
+     "en": "Swimming breaststroke, recreational"
+    },
+    {
+     "code": "18255",
+     "met": 4.8,
+     "group": "Natação e água",
+     "pt": "Natação, costas, recreativa",
+     "en": "Swimming, backstroke, recreational"
+    },
+    {
+     "code": "18310",
+     "met": 6,
+     "group": "Natação e água",
+     "pt": "Nadar sem fazer voltas (passeio na piscina)",
+     "en": "Swimming, leisurely, not lap swimming, general"
+    },
+    {
+     "code": "18355",
+     "met": 5.5,
+     "group": "Natação e água",
+     "pt": "Hidroginástica",
+     "en": "Water aerobics, water calisthenics, general"
+    },
+    {
+     "code": "18368",
+     "met": 4.8,
+     "group": "Natação e água",
+     "pt": "Caminhada na água, esforço moderado",
+     "en": "Water walking, moderate effort, moderate pace"
+    },
+    {
+     "code": "02054",
+     "met": 3.5,
+     "group": "Musculação e treino",
+     "pt": "Musculação, vários exercícios, 8 a 15 repetições",
+     "en": "Resistance (weight) training, multiple exercises, 8-15 reps at varied resistance"
+    },
+    {
+     "code": "02050",
+     "met": 6,
+     "group": "Musculação e treino",
+     "pt": "Musculação intensa (levantamento de peso, fisiculturismo)",
+     "en": "Resistance (weight lifting - free weight, nautilus or universal-type), power lifting or body building, vigorous effort (Taylor Code 210)"
+    },
+    {
+     "code": "02056",
+     "met": 3,
+     "group": "Musculação e treino",
+     "pt": "Exercícios com o peso do corpo, geral",
+     "en": "Body weight resistance exercises (e.g., squat, lunge, push-up, crunch), general"
+    },
+    {
+     "code": "02057",
+     "met": 6.5,
+     "group": "Musculação e treino",
+     "pt": "Exercícios com o peso do corpo, alta intensidade",
+     "en": "Body weight resistance exercises (e.g., squat, lunge, push-up, crunch), high intensity"
+    },
+    {
+     "code": "02035",
+     "met": 5,
+     "group": "Musculação e treino",
+     "pt": "Circuito, esforço moderado",
+     "en": "Circuit training, moderate effort"
+    },
+    {
+     "code": "02032",
+     "met": 6,
+     "group": "Musculação e treino",
+     "pt": "Circuito com o peso do corpo",
+     "en": "Circuit training, body weight exercises"
+    },
+    {
+     "code": "02210",
+     "met": 7,
+     "group": "Musculação e treino",
+     "pt": "Treino intervalado de alta intensidade (HIIT), esforço moderado",
+     "en": "High intensity interval exercise, moderate effort"
+    },
+    {
+     "code": "02214",
+     "met": 11,
+     "group": "Musculação e treino",
+     "pt": "HIIT intenso (burpees, tabata)",
+     "en": "High intensity interval exercise, burpees, mountain climbers, squat jumps, Tabata, vigorous effort"
+    },
+    {
+     "code": "02048",
+     "met": 5,
+     "group": "Musculação e treino",
+     "pt": "Elíptico, esforço moderado",
+     "en": "Elliptical trainer, moderate effort"
+    },
+    {
+     "code": "02022",
+     "met": 3.8,
+     "group": "Musculação e treino",
+     "pt": "Calistenia, esforço moderado",
+     "en": "Calisthenics (e.g., pushups, sit ups, pull-ups, lunges), moderate effort"
+    },
+    {
+     "code": "02069",
+     "met": 9,
+     "group": "Musculação e treino",
+     "pt": "Pular corda",
+     "en": "Jumping rope, Digi-Jump Machine, 120 jumps/minute"
+    },
+    {
+     "code": "02175",
+     "met": 2.3,
+     "group": "Yoga, pilates e alongamento",
+     "pt": "Yoga, geral",
+     "en": "Yoga, General"
+    },
+    {
+     "code": "02155",
+     "met": 3,
+     "group": "Yoga, pilates e alongamento",
+     "pt": "Yoga quente",
+     "en": "Yoga, Hot"
+    },
+    {
+     "code": "02105",
+     "met": 2.8,
+     "group": "Yoga, pilates e alongamento",
+     "pt": "Pilates, geral",
+     "en": "Pilates, general"
+    },
+    {
+     "code": "02101",
+     "met": 2.3,
+     "group": "Yoga, pilates e alongamento",
+     "pt": "Alongamento leve",
+     "en": "Stretching, mild"
+    },
+    {
+     "code": "03025",
+     "met": 4.5,
+     "group": "Dança e aulas em grupo",
+     "pt": "Dança cultural ou popular (inclui salsa e merengue)",
+     "en": "Ethnic or cultural dancing (e.g. Greek, Middle Eastern, hula, salsa, merengue, bamba y plena, flamenco, belly, and swing)"
+    },
+    {
+     "code": "03090",
+     "met": 4.8,
+     "group": "Dança e aulas em grupo",
+     "pt": "Dança a dois, salsa",
+     "en": "Salsa Dancing, with partner"
+    },
+    {
+     "code": "03033",
+     "met": 5,
+     "group": "Dança e aulas em grupo",
+     "pt": "Dança folclórica, esforço moderado",
+     "en": "Folk dancing, moderate effort"
+    },
+    {
+     "code": "03042",
+     "met": 6,
+     "group": "Dança e aulas em grupo",
+     "pt": "Dança de salão, recreativa",
+     "en": "Ballroom Dance, Recreational (Waltz, Foxtrot, Cha-cha, Swing)"
+    },
+    {
+     "code": "03040",
+     "met": 3,
+     "group": "Dança e aulas em grupo",
+     "pt": "Dança de salão, lenta",
+     "en": "Ballroom, slow, examples: waltz, foxtrot, slow dancing, samba tango, rumba, 19th century dance, mambo, cha cha"
+    },
+    {
+     "code": "03031",
+     "met": 9.8,
+     "group": "Dança e aulas em grupo",
+     "pt": "Dança de balada ou folclórica, esforço vigoroso",
+     "en": "Nightclub or folk dancing, vigorous effort (e.g., nightclub, disco, folk, line dancing, Irish step dancing, polka, contra)"
+    },
+    {
+     "code": "03070",
+     "met": 3.8,
+     "group": "Dança e aulas em grupo",
+     "pt": "Dança contemporânea",
+     "en": "Contemporary dancing, general"
+    },
+    {
+     "code": "02310",
+     "met": 6.5,
+     "group": "Dança e aulas em grupo",
+     "pt": "Zumba, aula em grupo",
+     "en": "Zumba, group class"
+    },
+    {
+     "code": "02005",
+     "met": 4.8,
+     "group": "Dança e aulas em grupo",
+     "pt": "Dança aeróbica, baixo impacto",
+     "en": "Aerobic dance, low impact, moderate effort"
+    },
+    {
+     "code": "02000",
+     "met": 7.3,
+     "group": "Dança e aulas em grupo",
+     "pt": "Ginástica aeróbica",
+     "en": "Aerobic, general"
+    },
+    {
+     "code": "15610",
+     "met": 7,
+     "group": "Esportes",
+     "pt": "Futebol, recreativo",
+     "en": "Soccer, casual, general (Taylor Code 540)"
+    },
+    {
+     "code": "15195",
+     "met": 7.8,
+     "group": "Esportes",
+     "pt": "Futsal",
+     "en": "Futsal"
+    },
+    {
+     "code": "15710",
+     "met": 4,
+     "group": "Esportes",
+     "pt": "Vôlei",
+     "en": "Volleyball (Taylor Code 400)"
+    },
+    {
+     "code": "15055",
+     "met": 7.5,
+     "group": "Esportes",
+     "pt": "Basquete, geral",
+     "en": "Basketball, general"
+    },
+    {
+     "code": "15675",
+     "met": 6.8,
+     "group": "Esportes",
+     "pt": "Tênis, esforço moderado",
+     "en": "Tennis, general, moderate effort"
+    },
+    {
+     "code": "15660",
+     "met": 4,
+     "group": "Esportes",
+     "pt": "Tênis de mesa",
+     "en": "Table tennis, ping pong (Taylor Code 410)"
+    },
+    {
+     "code": "15030",
+     "met": 5.5,
+     "group": "Esportes",
+     "pt": "Badminton, recreativo",
+     "en": "Badminton, social singles and doubles, general"
+    },
+    {
+     "code": "15110",
+     "met": 5.8,
+     "group": "Esportes",
+     "pt": "Boxe, saco de pancada",
+     "en": "Boxing, punching bag"
+    },
+    {
+     "code": "15430",
+     "met": 10.3,
+     "group": "Esportes",
+     "pt": "Artes marciais, ritmo moderado (judô, jiu-jitsu, karatê, taekwondo)",
+     "en": "Martial Arts, different types, moderate pace (e.g., judo, jujitsu, karate, kick boxing, tae kwon do, tai-bo, Muay Thai boxing)"
+    },
+    {
+     "code": "15425",
+     "met": 5.3,
+     "group": "Esportes",
+     "pt": "Artes marciais, ritmo lento, iniciantes",
+     "en": "Martial Arts, different types, slower pace, novice performers, practice"
+    },
+    {
+     "code": "15457",
+     "met": 7.3,
+     "group": "Esportes",
+     "pt": "Kickboxing",
+     "en": "Kickboxing"
+    },
+    {
+     "code": "15537",
+     "met": 5.8,
+     "group": "Esportes",
+     "pt": "Escalada, dificuldade baixa a moderada",
+     "en": "Rock climbing, ascending or traversing rock, low-to-moderate difficulty"
+    },
+    {
+     "code": "15535",
+     "met": 7.3,
+     "group": "Esportes",
+     "pt": "Escalada, dificuldade alta",
+     "en": "Rock climbing, ascending rock, high difficulty"
+    },
+    {
+     "code": "15533",
+     "met": 8,
+     "group": "Esportes",
+     "pt": "Escalada em rocha ou montanha, geral",
+     "en": "Rock or mountain climbing (Taylor Code 060), (formerly code 17120)"
+    },
+    {
+     "code": "15534",
+     "met": 8.8,
+     "group": "Esportes",
+     "pt": "Escalada, boulder",
+     "en": "Rock climbing, free boulder"
+    },
+    {
+     "code": "15590",
+     "met": 7,
+     "group": "Esportes",
+     "pt": "Patinação sobre rodas",
+     "en": "Skating, roller (Taylor Code 360)"
+    },
+    {
+     "code": "15620",
+     "met": 5,
+     "group": "Esportes",
+     "pt": "Beisebol ou softbol, esforço moderado",
+     "en": "Softball or baseball, fast or slow pitch, general, moderate effort (Taylor Code 440)"
+    },
+    {
+     "code": "05060",
+     "met": 3.3,
+     "group": "Casa e dia a dia",
+     "pt": "Compras de comida no mercado, com ou sem carrinho",
+     "en": "Food shopping with or without a grocery cart; carrying a 10 lb bag; standing or walking"
+    },
+    {
+     "code": "05065",
+     "met": 2.3,
+     "group": "Casa e dia a dia",
+     "pt": "Compras que não são de comida (loja, shopping)",
+     "en": "Non-food shopping, with or without cart, standing or walking"
+    },
+    {
+     "code": "05054",
+     "met": 3.5,
+     "group": "Casa e dia a dia",
+     "pt": "Carregar compras andando, em terreno plano",
+     "en": "carrying groceries, on level ground, walking"
+    },
+    {
+     "code": "05056",
+     "met": 5.3,
+     "group": "Casa e dia a dia",
+     "pt": "Carregar compras escada acima",
+     "en": "Carrying groceries upstairs"
+    },
+    {
+     "code": "05035",
+     "met": 3.3,
+     "group": "Casa e dia a dia",
+     "pt": "Cozinha em geral (cozinhar, lavar louça, arrumar)",
+     "en": "Kitchen activity, general, (e.g., cooking, washing dishes, cleaning up) moderate effort"
+    },
+    {
+     "code": "05050",
+     "met": 2,
+     "group": "Casa e dia a dia",
+     "pt": "Cozinhar, em pé ou sentado",
+     "en": "Cooking or food preparation - standing or sitting or in general (not broken into stand/walk components), manual appliances, light effort"
+    },
+    {
+     "code": "05010",
+     "met": 3.3,
+     "group": "Casa e dia a dia",
+     "pt": "Varrer o chão",
+     "en": "Cleaning, sweeping carpet or floors, general"
+    },
+    {
+     "code": "05021",
+     "met": 3.5,
+     "group": "Casa e dia a dia",
+     "pt": "Passar pano, esforço moderado",
+     "en": "Cleaning, mopping, standing, moderate effort"
+    },
+    {
+     "code": "05030",
+     "met": 3.3,
+     "group": "Casa e dia a dia",
+     "pt": "Limpeza da casa, esforço moderado",
+     "en": "Cleaning, house or cabin, general, moderate effort"
+    },
+    {
+     "code": "05020",
+     "met": 3.5,
+     "group": "Casa e dia a dia",
+     "pt": "Limpeza pesada (lavar o carro, limpar a garagem)",
+     "en": "Cleaning heavy or major (e.g., wash car, clean garage), moderate effort"
+    },
+    {
+     "code": "05043",
+     "met": 3,
+     "group": "Casa e dia a dia",
+     "pt": "Passar aspirador",
+     "en": "Vacuuming, general, moderate effort"
+    },
+    {
+     "code": "05092",
+     "met": 4,
+     "group": "Casa e dia a dia",
+     "pt": "Lavar roupa, esforço moderado",
+     "en": "Laundry, moderate effort"
+    },
+    {
+     "code": "05120",
+     "met": 5.8,
+     "group": "Casa e dia a dia",
+     "pt": "Mudança: carregar móveis e caixas",
+     "en": "Moving furniture, household items, carrying boxes"
+    },
+    {
+     "code": "05175",
+     "met": 3.5,
+     "group": "Casa e dia a dia",
+     "pt": "Brincar com crianças, andando ou correndo (esforço moderado)",
+     "en": "Walking/running, playing with child(ren), moderate effort, only active periods"
+    },
+    {
+     "code": "05180",
+     "met": 5.8,
+     "group": "Casa e dia a dia",
+     "pt": "Brincar com crianças, andando ou correndo (esforço vigoroso)",
+     "en": "Walking/running, playing with child(ren), vigorous effort, only active periods"
+    },
+    {
+     "code": "05192",
+     "met": 2.8,
+     "group": "Casa e dia a dia",
+     "pt": "Passear ou brincar com animais, esforço leve",
+     "en": "Walk or run, playing with animals, general, light effort, only active periods"
+    },
+    {
+     "code": "08245",
+     "met": 3.8,
+     "group": "Jardinagem",
+     "pt": "Jardinagem, esforço moderado",
+     "en": "Gardening, general, moderate effort"
+    },
+    {
+     "code": "08240",
+     "met": 4.5,
+     "group": "Jardinagem",
+     "pt": "Capinar e cultivar a horta, esforço moderado",
+     "en": "Weeding, cultivating garden, moderate effort (Taylor Code 580)"
+    },
+    {
+     "code": "08160",
+     "met": 4,
+     "group": "Jardinagem",
+     "pt": "Rastelar folhas ou grama",
+     "en": "Raking lawn or leaves, moderate effort"
+    },
+    {
+     "code": "08095",
+     "met": 5.5,
+     "group": "Jardinagem",
+     "pt": "Cortar grama andando, esforço moderado",
+     "en": "Mowing lawn, general, walking, moderate effort"
+    },
+    {
+     "code": "08230",
+     "met": 4,
+     "group": "Jardinagem",
+     "pt": "Regar o jardim, em pé ou andando",
+     "en": "Watering lawn or garden, standing or walking"
+    }
+   ]
+  },
+  "cadeira": {
+   "label": "Pessoas que usam cadeira de rodas",
+   "factor": 0.992,
+   "items": [
+    {
+     "code": "90101",
+     "met": 1.7,
+     "group": "Treino e exercício",
+     "pt": "Aeróbica (aula)",
+     "en": "Aerobics"
+    },
+    {
+     "code": "90109",
+     "met": 2.3,
+     "group": "Treino e exercício",
+     "pt": "Ergômetro de braço, intensidade moderada (escolhida pela pessoa)",
+     "en": "Arm Ergometry (self-selected intensity, moderate)"
+    },
+    {
+     "code": "90110",
+     "met": 4.3,
+     "group": "Treino e exercício",
+     "pt": "Ergômetro de braço, intensidade vigorosa (escolhida pela pessoa)",
+     "en": "Arm Ergometry exercise (self-selected intensity, vigorous)"
+    },
+    {
+     "code": "90120",
+     "met": 3,
+     "group": "Treino e exercício",
+     "pt": "Handbike, a 8 km/h",
+     "en": "Handcycle - 8 km/h"
+    },
+    {
+     "code": "90121",
+     "met": 7.5,
+     "group": "Treino e exercício",
+     "pt": "Handbike, a 16 km/h",
+     "en": "Handcycle - 16 km/h"
+    },
+    {
+     "code": "90123",
+     "met": 4.5,
+     "group": "Treino e exercício",
+     "pt": "Handbike de corrida",
+     "en": "Handcycle racing"
+    },
+    {
+     "code": "90125",
+     "met": 2.1,
+     "group": "Treino e exercício",
+     "pt": "Musculação",
+     "en": "Resistance (weight) Training"
+    },
+    {
+     "code": "90126",
+     "met": 2.3,
+     "group": "Treino e exercício",
+     "pt": "Circuito",
+     "en": "Circuit Training"
+    },
+    {
+     "code": "90127",
+     "met": 1.5,
+     "group": "Treino e exercício",
+     "pt": "Treino com faixa elástica",
+     "en": "Resistance band"
+    },
+    {
+     "code": "90128",
+     "met": 2,
+     "group": "Treino e exercício",
+     "pt": "Flexões apoiadas na cadeira",
+     "en": "Wheelchair pushups"
+    },
+    {
+     "code": "90133",
+     "met": 4.4,
+     "group": "Treino e exercício",
+     "pt": "Boxe, saco de pancada",
+     "en": "Heavy-bag boxing"
+    },
+    {
+     "code": "90590",
+     "met": 2.6,
+     "group": "Treino e exercício",
+     "pt": "Videogame de movimento (exergame)",
+     "en": "Exergaming"
+    },
+    {
+     "code": "90635",
+     "met": 2.9,
+     "group": "Locomoção na cadeira",
+     "pt": "Rodar em velocidade escolhida",
+     "en": "Wheeling - self-selected speed"
+    },
+    {
+     "code": "90630",
+     "met": 3.2,
+     "group": "Locomoção na cadeira",
+     "pt": "Rodar na calçada",
+     "en": "Wheeling - on Sidewalk"
+    },
+    {
+     "code": "90605",
+     "met": 4,
+     "group": "Locomoção na cadeira",
+     "pt": "Rodar na grama",
+     "en": "Wheeling - on Grass"
+    },
+    {
+     "code": "90650",
+     "met": 4,
+     "group": "Locomoção na cadeira",
+     "pt": "Subir uma rampa ou ladeira",
+     "en": "Wheeling - up Incline"
+    },
+    {
+     "code": "90655",
+     "met": 1.8,
+     "group": "Locomoção na cadeira",
+     "pt": "Descer uma ladeira",
+     "en": "Wheeling - Downhill"
+    },
+    {
+     "code": "90155",
+     "met": 4,
+     "group": "Locomoção na cadeira",
+     "pt": "Pista externa, a 3,4 km/h",
+     "en": "Wheeling outdoor track 3.4 km/h"
+    },
+    {
+     "code": "90157",
+     "met": 4.3,
+     "group": "Locomoção na cadeira",
+     "pt": "Pista externa, a 5,5 km/h",
+     "en": "Wheeling outdoor track 5.5 km/h"
+    },
+    {
+     "code": "90159",
+     "met": 5.9,
+     "group": "Locomoção na cadeira",
+     "pt": "Pista externa, a 8,0 km/h",
+     "en": "Wheeling outdoor track 8.0 km/h"
+    },
+    {
+     "code": "90160",
+     "met": 7.9,
+     "group": "Locomoção na cadeira",
+     "pt": "Cadeira de corrida",
+     "en": "Wheeling - racing"
+    },
+    {
+     "code": "90501",
+     "met": 5.1,
+     "group": "Esportes",
+     "pt": "Basquete em cadeira de rodas",
+     "en": "Basketball"
+    },
+    {
+     "code": "90505",
+     "met": 3.2,
+     "group": "Esportes",
+     "pt": "Basquete, recreativo",
+     "en": "Basketball - casual"
+    },
+    {
+     "code": "90540",
+     "met": 2.7,
+     "group": "Esportes",
+     "pt": "Rúgbi em cadeira de rodas",
+     "en": "Rugby"
+    },
+    {
+     "code": "90550",
+     "met": 4.1,
+     "group": "Esportes",
+     "pt": "Tênis em cadeira de rodas",
+     "en": "Tennis"
+    },
+    {
+     "code": "90545",
+     "met": 2.7,
+     "group": "Esportes",
+     "pt": "Tênis de mesa",
+     "en": "Table tennis"
+    },
+    {
+     "code": "90525",
+     "met": 7.1,
+     "group": "Esportes",
+     "pt": "Esgrima em cadeira de rodas",
+     "en": "Fencing"
+    },
+    {
+     "code": "90535",
+     "met": 11.8,
+     "group": "Esportes",
+     "pt": "Esqui nórdico sentado",
+     "en": "Nordic sit skiing"
+    },
+    {
+     "code": "90555",
+     "met": 1.8,
+     "group": "Esportes",
+     "pt": "Futebol em cadeira motorizada, competitivo",
+     "en": "Power Wheelchair Soccer - competitive"
+    },
+    {
+     "code": "90515",
+     "met": 1.8,
+     "group": "Esportes",
+     "pt": "Boliche",
+     "en": "Bowling"
+    },
+    {
+     "code": "90570",
+     "met": 2,
+     "group": "Dança",
+     "pt": "Dança moderna, com controle do tronco",
+     "en": "Dance - Modern, torso controlled wheelchair"
+    },
+    {
+     "code": "90575",
+     "met": 2,
+     "group": "Dança",
+     "pt": "Dança em ritmo lento",
+     "en": "Dance - slow paced"
+    },
+    {
+     "code": "90580",
+     "met": 3.1,
+     "group": "Dança",
+     "pt": "Dança em ritmo rápido",
+     "en": "Dance - fast paced"
+    },
+    {
+     "code": "90585",
+     "met": 1.7,
+     "group": "Dança",
+     "pt": "Dança em cadeira motorizada",
+     "en": "Dance - Electric power chair"
+    },
+    {
+     "code": "90260",
+     "met": 1.9,
+     "group": "Casa e dia a dia",
+     "pt": "Compras de mercado",
+     "en": "Grocery shopping"
+    },
+    {
+     "code": "90255",
+     "met": 1.8,
+     "group": "Casa e dia a dia",
+     "pt": "Preparar comida",
+     "en": "Preparing food"
+    },
+    {
+     "code": "90245",
+     "met": 1.9,
+     "group": "Casa e dia a dia",
+     "pt": "Lavar louça",
+     "en": "Washing Dishes"
+    },
+    {
+     "code": "90265",
+     "met": 2.3,
+     "group": "Casa e dia a dia",
+     "pt": "Varrer o chão",
+     "en": "Sweeping floor"
+    },
+    {
+     "code": "90240",
+     "met": 2.7,
+     "group": "Casa e dia a dia",
+     "pt": "Passar aspirador",
+     "en": "Vacuuming"
+    },
+    {
+     "code": "90220",
+     "met": 3,
+     "group": "Casa e dia a dia",
+     "pt": "Passar pano",
+     "en": "Mopping"
+    },
+    {
+     "code": "90225",
+     "met": 3.7,
+     "group": "Casa e dia a dia",
+     "pt": "Mover móveis, objetos ou caixas",
+     "en": "Moving furniture, household items, or boxes"
+    },
+    {
+     "code": "90215",
+     "met": 1.8,
+     "group": "Casa e dia a dia",
+     "pt": "Lavar roupa",
+     "en": "Laundry"
+    },
+    {
+     "code": "90280",
+     "met": 2.1,
+     "group": "Casa e dia a dia",
+     "pt": "Lavar o carro",
+     "en": "Cleaning Car"
+    },
+    {
+     "code": "90285",
+     "met": 3.1,
+     "group": "Casa e dia a dia",
+     "pt": "Transferência de e para a cadeira",
+     "en": "Transfer to/from wheelchair"
+    }
+   ]
+  }
+ }
+}
