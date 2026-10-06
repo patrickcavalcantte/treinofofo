@@ -153,7 +153,7 @@ function mealForm(meal) {
         <input name="name" type="text" autocomplete="off" maxlength="60" placeholder="ex.: Café da manhã" value="${esc(meal?.name ?? "")}" required>
       </label>
       <label class="field-block">O que o plano manda comer
-        <textarea name="text" rows="9" maxlength="2000" placeholder="ex.: 2 ovos mexidos, 1 fatia de pão integral, 1 fruta">${esc(meal?.text ?? "")}</textarea>
+        <textarea name="text" rows="9" maxlength="4000" placeholder="ex.: 2 ovos mexidos, 1 fatia de pão integral, 1 fruta">${esc(meal?.text ?? "")}</textarea>
       </label>
       <p class="login-msg" role="status"></p>
       <button class="cta" type="submit">${meal ? "Salvar alterações" : "Adicionar refeição"}</button>
@@ -175,7 +175,7 @@ export function renderDietView(state, now, editing) {
       <div class="meal-choices" role="group" aria-label="Como foi: ${esc(m.name)}">
         ${options.map(([v, label]) => `<button type="button" class="meal-btn ${v}" data-action="meal" data-id="${esc(m.id)}" data-status="${v}" aria-pressed="${log[m.id] === v}">${label}</button>`).join("")}
       </div>
-      ${m.text ? `<details class="meal-details"><summary>Ver o plano desta refeição</summary><p class="meal-text">${esc(m.text)}</p></details>` : ""}
+      ${m.text ? `<details class="meal-details"><summary>Ver o plano desta refeição</summary><p class="meal-text">${mealTextHtml(m.text)}</p></details>` : ""}
     </section>`).join("");
 
   const strip = renderStrip(now, (key) => {
@@ -231,16 +231,19 @@ function formatSize(bytes) {
   return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-/** Revisão depois de ler o PDF: escolhe quais refeições criar e se guarda o arquivo. */
+/** Revisão depois de ler o PDF: escolhe quais refeições criar, corrige o texto de cada uma e decide se guarda o arquivo. */
 function planReview(editing) {
   if (editing.loading) return `<h2>Lendo o PDF...</h2><p class="small" role="status">Isso leva alguns segundos.</p>`;
-  const names = editing.names ?? [];
+  const meals = editing.meals ?? [];
   return `
     <form class="login" data-action="plan-save" novalidate>
       <h2>Plano em PDF</h2>
-      ${names.length ? `<fieldset class="choice"><legend>Refeições encontradas no PDF</legend>
-        ${names.map((n) => `<label><input type="checkbox" name="meal" value="${esc(n)}" checked> ${esc(n)}</label>`).join("")}
-      </fieldset>` : `<p>${editing.skipped?.length ? "As refeições do PDF já estão cadastradas." : "Não encontrei os nomes das refeições nesse PDF. Você pode guardar o arquivo e adicionar as refeições à mão."}</p>`}
+      ${meals.length ? `<p class="small" style="margin:0 0 .75rem">Encontrei estas refeições. Confira o texto de cada uma e corrija o que precisar: ele aparece na hora de marcar a refeição do dia.</p>
+      ${meals.map((m, i) => `
+        <fieldset class="review-meal">
+          <label class="review-name"><input type="checkbox" name="meal" value="${i}" checked> <strong>${esc(m.name)}</strong></label>
+          <textarea name="text-${i}" rows="7" maxlength="4000" aria-label="Texto de ${esc(m.name)}">${esc(m.text)}</textarea>
+        </fieldset>`).join("")}` : `<p>${editing.skipped?.length ? "As refeições do PDF já estão cadastradas." : "Não encontrei os nomes das refeições nesse PDF. Você pode guardar o arquivo e adicionar as refeições à mão."}</p>`}
       ${editing.note ? `<p class="small">${esc(editing.note)}</p>` : ""}
       <fieldset class="choice">
         <label><input type="checkbox" name="store" ${editing.canStore ? "checked" : "disabled"}> Guardar o PDF na minha conta</label>
@@ -250,6 +253,13 @@ function planReview(editing) {
       <button class="cta" type="submit">Confirmar</button>
       <button class="cta ghost" type="button" data-action="plan-cancel">Cancelar</button>
     </form>`;
+}
+
+/** Texto da refeição com os títulos "Substituição N" em destaque. */
+function mealTextHtml(text) {
+  return String(text).split("\n")
+    .map((line) => (/^Substitui[cç][aã]o\s*\d+$/i.test(line.trim()) ? `<strong class="subst">${esc(line.trim())}</strong>` : esc(line)))
+    .join("\n");
 }
 // ---------- Avisos na home ----------
 

@@ -391,7 +391,7 @@ export function saveMeal(state, data, id, now) {
   if (!name) throw new Error("Escreva o nome da refeição.");
   const old = (state.meals ?? []).find((m) => m.id === id);
   const meal = {
-    id, name: name.slice(0, 60), text: String(data.text ?? "").trim().slice(0, 2000),
+    id, name: name.slice(0, 60), text: String(data.text ?? "").trim().slice(0, 4000),
     order: old?.order ?? (state.meals ?? []).length,
     createdAt: old?.createdAt ?? dayKey(now), updatedAt: new Date(now).toISOString(), deleted: false,
   };

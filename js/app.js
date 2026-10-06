@@ -8,7 +8,7 @@ import {
 import * as sync from "./sync.js";
 import { initChat } from "./chatui.js";
 import { esc } from "./dom.js";
-import { loadPdfjs, extractTextItems, detectMeals, validatePdf } from "./dietplan.js";
+import { loadPdfjs, extractLayout, mealsFromLayout, validatePdf } from "./dietplan.js";
 import { renderOnboarding, freshOnboarding, prevStep, nextStep } from "./onboardingview.js";
 import { GOALS, DISCLAIMER, SOURCES, EVIDENCE_LIMIT, buildProfile, skippedProfile, needsOnboarding, cleanName, greeting } from "./onboarding.js";
 import {
@@ -832,6 +832,15 @@ app.addEventListener("change", (e) => {
   }
 });
 
+// O logo leva para a tela inicial. No login e no onboarding ele não faz nada, para ninguém pular essas etapas sem querer.
+document.querySelector(".brand-link")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  if (view === "login" || view === "onboarding" || view === "home") { if (view === "home") window.scrollTo(0, 0); return; }
+  if (view === "workout") { keepAwake(false); stopRest(); } // o treino em andamento fica salvo e aparece como cartão na home
+  editing = null; pendingPlan = null;
+  view = "home"; render(); window.scrollTo(0, 0);
+});
+
 // ---------- Conta e sincronização ----------
 
 // Junta o que está neste aparelho com o que está no Supabase e grava o resultado nos dois lados.
@@ -879,14 +888,15 @@ app.addEventListener("submit", async (e) => {
   if (!planForm) return;
   e.preventDefault();
   const fd = new FormData(planForm);
-  const chosen = fd.getAll("meal");
+  // Cada refeição marcada vai com o texto como ficou na revisão, já corrigido pela pessoa se ela quis.
+  const chosen = fd.getAll("meal").map((i) => ({ name: editing.meals[Number(i)].name, text: String(fd.get(`text-${i}`) ?? "") }));
   const store = fd.get("store") === "on" && pendingPlan?.file;
   const msg = planForm.querySelector(".login-msg");
   const button = planForm.querySelector('button[type="submit"]');
   button.disabled = true;
   try {
     let next = state;
-    if (chosen.length) next = importMeals(next, chosen.map((name) => ({ name, text: "" })), new Date(), newId).state;
+    if (chosen.length) next = importMeals(next, chosen, new Date(), newId).state;
     if (store) {
       msg.textContent = "Enviando o PDF...";
       const path = await sync.uploadPlan(pendingPlan.file);
@@ -942,11 +952,11 @@ app.addEventListener("change", async (e) => {
     pendingPlan = { file };
     editing = { type: "plan", loading: true };
     render(); window.scrollTo(0, 0);
-    let names = [];
+    let found = [];
     let note = "";
     try {
-      const items = await extractTextItems(new Uint8Array(await file.arrayBuffer()), await loadPdfjs());
-      names = detectMeals(items);
+      const items = await extractLayout(new Uint8Array(await file.arrayBuffer()), await loadPdfjs());
+      found = mealsFromLayout(items);
       if (!items.length) note = "Esse PDF não tem texto que dê para ler (pode ser uma foto). Guarde o arquivo e cadastre as refeições à mão.";
     } catch (err) {
       console.warn("Não foi possível ler o PDF.", err);
@@ -955,7 +965,7 @@ app.addEventListener("change", async (e) => {
     const have = new Set(activeMeals(state).map((m) => m.name.toLowerCase()));
     editing = {
       type: "plan", note, canStore: sync.signedIn(),
-      names: names.filter((n) => !have.has(n.toLowerCase())), skipped: names.filter((n) => have.has(n.toLowerCase())),
+      meals: found.filter((m) => !have.has(m.name.toLowerCase())), skipped: found.filter((m) => have.has(m.name.toLowerCase())).map((m) => m.name),
     };
     render();
     return;
