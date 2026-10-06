@@ -8,6 +8,8 @@ import {
 import * as sync from "./sync.js";
 import { initChat } from "./chatui.js";
 import { esc } from "./dom.js";
+import { versionLabel } from "./version.js";
+import { renderTour, needsTour, finishTour } from "./tour.js";
 import { renderNutri, renderNutriSetup, renderFood, renderFoodResults, foodPreview } from "./nutriview.js";
 import { saveNutrition, dailyTargets, addFoodEntry, removeFoodEntry, saveCustomFood, activeCustomFoods, parseTaco, parseMarcas, latestWeightKg, unitOf } from "./nutrition.js";
 import { loadPdfjs, extractLayout, mealsFromLayout, validatePdf } from "./dietplan.js";
@@ -45,10 +47,13 @@ async function loadTaco() {
 
 let pendingPlan = null; // PDF escolhido, à espera da confirmação do usuário
 let onb = null; // respostas do onboarding em andamento
+let tourStep = 0;
+let tourFrom = "app"; // "login": o tour foi aberto antes de entrar na conta, e termina de volta no login
 let editing = null; // { type: "med" | "meal", id } enquanto um formulário de remédio ou refeição está aberto
 /** Decide a primeira tela depois de entrar: onboarding (se ainda não há perfil), treino em andamento ou home. */
 function enterApp() {
-  if (needsOnboarding(state) && !state.draft) { onb = freshOnboarding(state.profile?.name ?? ""); view = "onboarding"; }
+  if (needsTour(state) && !state.draft) { tourStep = 0; tourFrom = "app"; view = "tour"; }
+  else if (needsOnboarding(state) && !state.draft) { onb = freshOnboarding(state.profile?.name ?? ""); view = "onboarding"; }
   else view = state.draft ? "workout" : "home";
 }
 
@@ -164,6 +169,7 @@ function renderHome() {
     <button class="cta ghost" style="margin-top:1.25rem" data-action="go" data-view="guide">Antes de começar</button>
 
     ${state.profile?.goal ? `<p class="small account">Objetivo: ${esc(GOALS[state.profile.goal].label)} · ${goal} treinos por semana. <button class="switch" data-action="onb-restart">Refazer</button></p>` : `<p class="small account"><button class="switch" data-action="onb-restart">Receber uma sugestão de treino</button></p>`}
+    <p class="small account"><button class="switch" data-action="tour-start">Ver o tour do app</button></p>
     ${sync.signedIn() ? `<p class="account small">Sincronizado como ${esc(sync.email())} · <button class="switch" data-action="signout">Sair</button></p>` : ""}
   `;
 }
@@ -233,7 +239,9 @@ function renderLogin(message = "", { email = "", sent = false } = {}) {
   }
   app.innerHTML = `
     <h1 class="display">Entrar</h1>
+    <p class="beta-badge"><span>${esc(versionLabel())}</span> em teste: pode ter bugs</p>
     <p class="lede">Entre com a sua conta para o progresso aparecer igual no celular e no computador.</p>
+    <button type="button" class="cta ghost tour-link" data-action="tour-start">Ver como o app funciona</button>
     ${GOOGLE_LOGIN ? `<button class="cta google" type="button" data-action="google">Entrar com Google</button>
     <p class="or small">ou com e-mail e senha</p>` : ""}
     <form class="login" data-action="login" novalidate>
@@ -545,6 +553,7 @@ function renderGuide() {
 function render() {
   if (view === "login") renderLogin();
   else if (view === "onboarding") app.innerHTML = renderOnboarding(onb);
+  else if (view === "tour") app.innerHTML = renderTour(tourStep);
   else if (view === "newpassword") renderNewPassword();
   else if (view === "workout" && state.draft) renderWorkout();
   else if (view === "guide") renderGuide();
@@ -795,6 +804,20 @@ app.addEventListener("click", (e) => {
       chosenKey = state.profile.start;
       persist(); onb = null; view = "home"; render(); window.scrollTo(0, 0);
       break;
+    case "tour-start":
+      tourStep = 0; tourFrom = sync.enabled && !sync.signedIn() ? "login" : "app"; view = "tour";
+      render(); window.scrollTo(0, 0);
+      break;
+    case "tour-next": tourStep += 1; render(); window.scrollTo(0, 0); break;
+    case "tour-back": tourStep = Math.max(0, tourStep - 1); render(); window.scrollTo(0, 0); break;
+    case "tour-skip":
+    case "tour-done": {
+      state = finishTour(state, action === "tour-skip", new Date());
+      persist();
+      if (tourFrom === "login") { view = "login"; tourFrom = "app"; } else enterApp(); // depois do tour, o onboarding (se faltar) ou a home
+      render(); window.scrollTo(0, 0);
+      break;
+    }
     case "onb-restart":
       onb = freshOnboarding(state.profile?.name ?? ""); view = "onboarding"; render(); window.scrollTo(0, 0);
       break;
@@ -904,7 +927,7 @@ app.addEventListener("change", (e) => {
 // O logo leva para a tela inicial. No login e no onboarding ele não faz nada, para ninguém pular essas etapas sem querer.
 document.querySelector(".brand-link")?.addEventListener("click", (e) => {
   e.preventDefault();
-  if (view === "login" || view === "onboarding" || view === "home") { if (view === "home") window.scrollTo(0, 0); return; }
+  if (view === "login" || view === "onboarding" || view === "tour" || view === "home") { if (view === "home") window.scrollTo(0, 0); return; }
   if (view === "workout") { keepAwake(false); stopRest(); } // o treino em andamento fica salvo e aparece como cartão na home
   editing = null; pendingPlan = null;
   view = "home"; render(); window.scrollTo(0, 0);
@@ -1143,11 +1166,11 @@ document.addEventListener("visibilitychange", () => {
 async function boot() {
   render();
   if (view === "workout") keepAwake(true);
-  if (!sync.enabled) { if (needsOnboarding(state) && !state.draft) { enterApp(); render(); } return; }
+  if (!sync.enabled) { if ((needsTour(state) || needsOnboarding(state)) && !state.draft) { enterApp(); render(); } return; }
   try {
     const user = await sync.start();
     if (user && sync.isRecovery()) { view = "newpassword"; render(); }
-    else if (user) { await reconcile(); if (needsOnboarding(state) && !state.draft) enterApp(); render(); }
+    else if (user) { await reconcile(); if ((needsTour(state) || needsOnboarding(state)) && !state.draft) enterApp(); render(); }
     else { view = "login"; renderLogin(sync.linkExpired() ? "O link expirou. Toque em Esqueci minha senha para receber outro." : ""); }
   } catch (err) {
     console.warn("Sem conexão com o servidor. O app segue com os dados deste aparelho.", err);

@@ -264,6 +264,35 @@ function budgetBanner(state, now, today) {
     </div>`;
 }
 
+/** Remédios do dia, remédio espaçado e adesão em poucas linhas, sem botões. Usado no tour. */
+export function medsGlance(state, now) {
+  const doses = todayDoses(state, now);
+  const rows = SLOTS.flatMap((slot) => doses.filter((d) => d.slot === slot)).map((d) => `
+    <li><span class="dose" aria-pressed="${d.taken}"><span class="dose-check">✓</span>
+      <span><strong>${esc(d.med.name)}</strong> <span class="small">${esc(d.slot)}</span></span></span></li>`).join("");
+  const hormones = activeMeds(state).filter((m) => m.kind === "interval").map((m) => {
+    const st = intervalStatus(state, m, now);
+    return `<div class="interval ${st.status}" style="margin-top:.75rem"><div><strong>${esc(m.name)}</strong>
+      <p class="small" style="margin:.25rem 0 0">A cada ${everyText(m.every)}</p>
+      <p style="margin:.25rem 0 0">${esc(intervalInfo(st))}</p></div></div>`;
+  }).join("");
+  return `<ul class="dose-list">${rows}</ul>${hormones}${renderMedsHabit(state, now)}`;
+}
+
+/** Refeições do dia com os botões de check e o quadro de calorias, sem botões de ação. Usado no tour. */
+export function dietGlance(state, now) {
+  const today = dayKey(now);
+  const log = state.dietLog?.[today] ?? {};
+  const options = [["ok", "Segui"], ["parcial", "Em parte"], ["fora", "Fora"]];
+  const meals = activeMeals(state).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((m) => {
+    const entries = entriesOf(state, today).filter((e) => e.mealId === m.id);
+    return `<section class="meal"><h3>${esc(m.name)}${entries.length ? ` <span class="meal-kcal">${num(mealKcal(entries))} kcal</span>` : ""}</h3>
+      <div class="meal-choices">${options.map(([v, label]) => `<span class="meal-btn ${v}" aria-pressed="${log[m.id] === v}">${label}</span>`).join("")}</div>
+      ${mealFoodsHtml(entries, false, today).replace(/<button[\s\S]*?<\/button>/g, "")}</section>`;
+  }).join("");
+  return `${budgetBanner(state, now, today)}${meals}`;
+}
+
 /** Revisão depois de ler o PDF: escolhe quais refeições criar, corrige o texto de cada uma e decide se guarda o arquivo. */
 function planReview(editing) {
   if (editing.loading) return `<h2>Lendo o PDF...</h2><p class="small" role="status">Isso leva alguns segundos.</p>`;

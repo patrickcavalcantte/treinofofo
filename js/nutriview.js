@@ -131,6 +131,23 @@ export function renderNutri(state, now, day, todayKey) {
     ${disclaimer()}`;
 }
 
+/** Resumo do dia em poucas linhas (anel, macros e alguns minerais), sem botões nem cabeçalho. Usado no tour. */
+export function nutriGlance(state, now, day) {
+  const r = dailyTargets(state.nutrition, latestWeightKg(state), now);
+  if (!r.ok) return "";
+  const { totals, missing, count } = dayTotals(state, day);
+  const t = r.targets;
+  const pct = Math.min(100, Math.round((totals.energy_kcal / t.energy_kcal) * 100));
+  const row = (id) => {
+    const n = NUTRIENTS.find((x) => x.id === id);
+    return meterRow({ label: n.label, value: totals[id], target: t[id], unit: n.unit, hide: false, missing: missing[id], count, limit: n.limit });
+  };
+  return `
+    <div class="ring-wrap"><div class="ring" style="--pct:${pct}"><div class="ring-inner"><strong>${num(totals.energy_kcal)}</strong><span class="small">de ${num(t.energy_kcal)} kcal</span></div></div></div>
+    ${budgetLine(kcalBudget(state, now, day), false)}
+    ${row("protein_g")}${row("carbohydrate_g")}${row("lipids_g")}${row("calcium_mg")}${row("iron_mg")}${row("vitamin_c_mg")}`;
+}
+
 /** Linha "Restam X kcal" abaixo do anel. Com números escondidos, só a situação. */
 export function budgetLine(b, hide) {
   if (!b.ok) return "";

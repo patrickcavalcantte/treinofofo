@@ -731,3 +731,27 @@ h3.slot { font-family: var(--wide); font-stretch: 112%; font-size: 1rem; color: 
 .meal-kcal { font-family: var(--body); font-stretch: 100%; font-weight: 600; font-size: 0.9375rem; color: var(--muted); margin-left: 0.375rem; font-variant-numeric: tabular-nums; }
 .meal-group { margin-top: 0.75rem; }
 .meal-group h3 { font-family: var(--wide); font-stretch: 112%; font-size: 1.0625rem; margin: 0; }
+.beta-badge { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin: 0.75rem 0 0; font-size: 0.875rem; color: var(--muted); }
+.beta-badge span { background: var(--plate); color: #141B2D; font-weight: 800; border-radius: 999px; padding: 0.125rem 0.75rem; letter-spacing: 0.02em; }
+/* ---------- Tour ---------- */
+
+.tour-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
+.tour-top .switch { margin: 0; }
+.tour-dots { display: flex; gap: 0.375rem; margin: 0; }
+.tour-dot { width: 0.625rem; height: 0.625rem; border-radius: 50%; background: var(--line); }
+.tour-dot.on { background: var(--cobalt); width: 1.5rem; border-radius: 999px; }
+.tour-preview {
+  position: relative; margin-top: 1.25rem; padding: 1rem; max-height: 27rem; overflow: hidden;
+  background: var(--paper); border: 2px solid var(--line); border-radius: 1.25rem;
+  pointer-events: none; user-select: none;
+  -webkit-mask-image: linear-gradient(#000 82%, transparent); mask-image: linear-gradient(#000 82%, transparent);
+}
+.tour-preview .cta { display: none; }
+.tour-preview .exercise { margin: 0; }
+.tour-preview .habit-cards { margin-top: 0; }
+.tour-cues { margin: 0.5rem 0 0; padding-left: 1.125rem; display: grid; gap: 0.375rem; font-size: 0.9375rem; color: var(--muted); }
+.tour-caption { margin: 0.5rem 0 0; text-align: center; }
+.tour-nav { display: flex; gap: 0.75rem; margin-top: 1rem; }
+.tour-nav .cta { margin: 0; }
+.tour-nav .ghost { flex: 0 0 auto; width: auto; padding-left: 1.5rem; padding-right: 1.5rem; }
+.tour-link { margin-top: 1rem; }
