@@ -7,6 +7,9 @@ export const NUTRITION_DISCLAIMER =
 export const FOOD_SOURCE =
   "TACO, Tabela Brasileira de Composição de Alimentos, 4ª edição ampliada e revisada (NEPA/UNICAMP, 2011), pelo repositório github.com/brolesi/taco. Valores por 100 g de parte comestível.";
 
+export const BRAND_SOURCE =
+  "Marcas: Open Food Facts (openfoodfacts.org), base aberta sob licença ODbL, com dados enviados por usuários. Só entram produtos com valores consistentes, mas o sabor e o lote podem mudar os números: confira a sua embalagem.";
+
 export const DRI_SOURCE =
   "Referências de vitaminas e minerais: Dietary Reference Intakes (NASEM/IOM), valores para adultos saudáveis. O sódio mostra o limite de 2.000 mg da OMS.";
 
@@ -179,6 +182,13 @@ export function searchFoods(foods, query, limit = 30) {
     .map(({ f }) => f);
 }
 
+/** Produtos de marca (assets/marcas.json). A unidade é "g" ou "ml", conforme o rótulo. */
+export function parseMarcas(data) {
+  return data.items.map((i) => ({ id: `marca:${i.code}`, name: i.name, category: `Marcas · ${i.brand}`, brand: i.brand, per100: { ...i.per100 }, unit: i.unit === "ml" ? "ml" : "g", source: "marca" }));
+}
+
+export const unitOf = (x) => (x?.unit === "ml" || x?.u === "ml" ? "ml" : "g");
+
 /** Transforma o arquivo compacto da TACO (assets/taco.json) em uma lista de alimentos. */
 export function parseTaco(data) {
   return data.rows.map((row) => {
@@ -207,6 +217,7 @@ export function saveCustomFood(state, data, id, now) {
     per100.energy_kcal = Math.round(((p ?? 0) * 4 + (c ?? 0) * 4 + (f ?? 0) * 9) * 10) / 10;
   }
   const food = { id, name: name.slice(0, 80), per100, updatedAt: new Date(now).toISOString(), deleted: false };
+  if (data.unit === "ml") food.unit = "ml"; // cópia de um produto líquido
   return { ...state, customFoods: [...(state.customFoods ?? []).filter((x) => x.id !== id), food] };
 }
 
@@ -215,7 +226,7 @@ export function removeCustomFood(state, id, now) {
 }
 
 export const activeCustomFoods = (state) =>
-  (state.customFoods ?? []).filter((f) => !f.deleted).map((f) => ({ id: `custom:${f.id}`, name: f.name, category: "Meus alimentos", per100: f.per100, source: "custom" }));
+  (state.customFoods ?? []).filter((f) => !f.deleted).map((f) => ({ id: `custom:${f.id}`, name: f.name, category: "Meus alimentos", per100: f.per100, unit: f.unit === "ml" ? "ml" : "g", source: "custom" }));
 
 // ---------- Registro do dia ----------
 
@@ -231,12 +242,13 @@ export function completePer100(per100) {
 }
 
 /** Registra um alimento no dia. Guarda uma cópia dos nutrientes, para o histórico não mudar se o alimento for editado. */
-export function addFoodEntry(state, { mealId = null, name, per100, g }, dayKey, id, now) {
+export function addFoodEntry(state, { mealId = null, name, per100, g, unit = "g" }, dayKey, id, now) {
   const grams = Number(String(g).replace(",", "."));
-  if (!Number.isFinite(grams) || grams <= 0 || grams > MAX_GRAMS) throw new Error(`Informe a quantidade em gramas, de 1 a ${MAX_GRAMS}.`);
+  if (!Number.isFinite(grams) || grams <= 0 || grams > MAX_GRAMS) throw new Error(`Informe a quantidade em gramas (ou ml), de 1 a ${MAX_GRAMS}.`);
   const label = String(name ?? "").trim();
   if (!label) throw new Error("Escolha um alimento.");
   const entry = { id, mealId, name: label.slice(0, 80), g: Math.round(grams * 10) / 10, n: completePer100(per100 ?? {}), updatedAt: new Date(now).toISOString(), deleted: false };
+  if (unit === "ml") entry.u = "ml"; // produto líquido: a quantidade é em ml, e o rótulo vale por 100 ml
   return { ...state, foodLog: { ...(state.foodLog ?? {}), [dayKey]: [...(state.foodLog?.[dayKey] ?? []), entry] } };
 }
 
@@ -271,6 +283,35 @@ export function dayTotals(state, dayKey) {
     }
   }
   return { totals, missing, count: entries.length };
+}
+
+/** Calorias de um conjunto de itens, arredondadas. */
+export const mealKcal = (entries) => Math.round(entries.reduce((sum, e) => sum + ((e.n?.energy_kcal ?? 0) * e.g) / 100, 0));
+
+/** Itens do dia agrupados por refeição, na ordem da dieta, com a soma de calorias de cada uma. Itens sem refeição vêm por último. */
+export function entriesByMeal(state, dayKey, meals) {
+  const entries = entriesOf(state, dayKey);
+  const known = new Set(meals.map((m) => m.id));
+  const groups = meals.map((m) => ({ mealId: m.id, name: m.name, entries: entries.filter((e) => e.mealId === m.id) }));
+  groups.push({ mealId: null, name: "Sem refeição", entries: entries.filter((e) => !e.mealId || !known.has(e.mealId)) });
+  return groups.filter((g) => g.entries.length).map((g) => ({ ...g, kcal: mealKcal(g.entries) }));
+}
+
+/**
+ * Orçamento de calorias do dia: a meta calculada, o que já foi registrado e quanto resta.
+ * `ok` falso quando ainda não há metas (sem perfil, ou perfil incompleto).
+ */
+export function kcalBudget(state, now, dayKey) {
+  if (!state.nutrition) return { ok: false, reason: "sem-perfil" };
+  const result = dailyTargets(state.nutrition, latestWeightKg(state), now);
+  if (!result.ok) return { ok: false, reason: "incompleto", errors: result.errors };
+  const target = result.targets.energy_kcal;
+  const eaten = Math.round(dayTotals(state, dayKey).totals.energy_kcal);
+  const remaining = target - eaten;
+  return {
+    ok: true, target, eaten, remaining, over: remaining < 0, pct: Math.min(100, Math.round((eaten / target) * 100)),
+    status: intakeStatus(eaten, target), hide: state.nutrition.hideNumbers === true, goal: state.nutrition.goal, warnings: result.warnings,
+  };
 }
 
 /** Situação de um nutriente em relação à meta, sem números: usada por quem escolhe esconder os valores. */

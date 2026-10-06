@@ -1,7 +1,7 @@
 // Telas de remédios e dieta. Só montam HTML a partir do estado; os eventos ficam em app.js.
 import { esc } from "./dom.js";
-import { entriesOf } from "./nutrition.js";
-import { mealFoodsHtml } from "./nutriview.js";
+import { entriesOf, kcalBudget, mealKcal } from "./nutrition.js";
+import { mealFoodsHtml, num } from "./nutriview.js";
 import {
   SLOTS, UNITS, doseHistory, activeMeds, activeMeals, activeDietPlan, todayDoses, intervalStatus, medAdherence, medDay,
   dietAdherence, dietDay, dayKey, startOfWeek,
@@ -171,16 +171,17 @@ export function renderDietView(state, now, editing) {
   const a30 = dietAdherence(state, now, 30);
   const options = [["ok", "Segui"], ["parcial", "Em parte"], ["fora", "Fora"]];
 
-  const todayHtml = meals.map((m) => `
+  const hideNumbers = state.nutrition?.hideNumbers === true;
+  const todayHtml = meals.map((m) => { const mealEntries = entriesOf(state, today).filter((e) => e.mealId === m.id); return `
     <section class="meal">
-      <h3>${esc(m.name)}</h3>
+      <h3>${esc(m.name)}${mealEntries.length && !hideNumbers ? ` <span class="meal-kcal">${num(mealKcal(mealEntries))} kcal</span>` : ""}</h3>
       <div class="meal-choices" role="group" aria-label="Como foi: ${esc(m.name)}">
         ${options.map(([v, label]) => `<button type="button" class="meal-btn ${v}" data-action="meal" data-id="${esc(m.id)}" data-status="${v}" aria-pressed="${log[m.id] === v}">${label}</button>`).join("")}
       </div>
-      ${mealFoodsHtml(entriesOf(state, today).filter((e) => e.mealId === m.id), state.nutrition?.hideNumbers === true, today)}
+      ${mealFoodsHtml(mealEntries, hideNumbers, today)}
       <button type="button" class="switch" data-action="food-add" data-meal="${esc(m.id)}" data-day="${today}">+ Adicionar alimento</button>
       ${m.text ? `<details class="meal-details"><summary>Ver o plano desta refeição</summary><p class="meal-text">${mealTextHtml(m.text)}</p></details>` : ""}
-    </section>`).join("");
+    </section>`; }).join("");
 
   const strip = renderStrip(now, (key) => {
     const d = dietDay(state, key);
@@ -216,7 +217,8 @@ export function renderDietView(state, now, editing) {
     : editing?.type === "meal" ? mealForm(editingMeal)
     : `
       ${meals.length ? `<h2 class="section">Hoje</h2>
-      <button type="button" class="switch" data-action="go" data-view="nutri">Ver nutrientes do dia</button>${todayHtml}
+      <button type="button" class="switch" data-action="go" data-view="nutri">Ver nutrientes do dia</button>
+      ${budgetBanner(state, now, today)}${todayHtml}
       <h2 class="section">Adesão</h2>${stats(a7, a30, "Segui vale 100%, em parte 50% e fora 0%. Dias sem marcação contam como 0%. O dia de hoje só entra depois da primeira marcação.")}${strip}` : ""}
       <h2 class="section">Nutrientes</h2>
       <p class="small" style="margin:0 0 0.75rem">Registre o que você comeu e acompanhe calorias, macros, vitaminas e minerais contra as suas metas.</p>
@@ -237,6 +239,29 @@ export function renderDietView(state, now, editing) {
 
 function formatSize(bytes) {
   return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+/** Quanto resta de calorias hoje, logo acima das refeições. Sem metas, convida a calcular. */
+function budgetBanner(state, now, today) {
+  const b = kcalBudget(state, now, today);
+  if (b.reason === "sem-perfil") {
+    return `<div class="budget"><p class="small" style="margin:0">Quer saber quantas calorias pode comer por dia? <button type="button" class="switch" data-action="nutri-setup">Calcular minha meta</button></p></div>`;
+  }
+  if (!b.ok) return `<div class="budget"><p class="small" style="margin:0">Falta completar as suas metas. <button type="button" class="switch" data-action="nutri-setup">Abrir metas</button></p></div>`;
+  const cls = b.over ? "over" : b.pct >= 85 ? "near" : "ok";
+  if (b.hide) {
+    return `<div class="budget"><p class="small" style="margin:0 0 .375rem" role="status">${b.over ? "Hoje você passou da meta de calorias." : b.pct >= 85 ? "Hoje você está chegando na meta de calorias." : "Hoje você está dentro da meta de calorias."}</p>
+      <div class="meter ${cls}"><span style="width:${b.pct}%"></span></div></div>`;
+  }
+  return `<div class="budget ${b.over ? "over" : ""}" role="status" aria-label="${b.over ? `${num(-b.remaining)} calorias acima da meta` : `Restam ${num(b.remaining)} calorias hoje`}">
+      <div class="budget-nums">
+        <span>Meta <strong>${num(b.target)}</strong></span>
+        <span>Registrado <strong>${num(b.eaten)}</strong></span>
+        <span>${b.over ? "Acima" : "Restam"} <strong>${num(Math.abs(b.remaining))}</strong></span>
+      </div>
+      <div class="meter ${cls}"><span style="width:${b.pct}%"></span></div>
+      <p class="small" style="margin:.375rem 0 0">calorias (kcal) de hoje</p>
+    </div>`;
 }
 
 /** Revisão depois de ler o PDF: escolhe quais refeições criar, corrige o texto de cada uma e decide se guarda o arquivo. */

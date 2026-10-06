@@ -7,6 +7,7 @@ import {
   NUTRIENTS, MICRO_IDS, ACTIVITY, GOALS, FORMULAS, bmr, ageFrom, microTargets, dailyTargets, searchFoods, parseTaco,
   saveCustomFood, removeCustomFood, activeCustomFoods, completePer100, addFoodEntry, removeFoodEntry, entriesOf, portionOf,
   dayTotals, intakeStatus, saveNutrition, latestWeightKg, NUTRITION_DISCLAIMER, FOOD_SOURCE,
+  parseMarcas, unitOf, mealKcal, entriesByMeal, kcalBudget, BRAND_SOURCE,
 } from "../js/nutrition.js";
 import { emptyState, mergeStates } from "../js/logic.js";
 
@@ -364,5 +365,160 @@ describe("opções de tela", () => {
   test("o ganho e a perda de peso são simétricos", () => {
     assert.equal(GOALS.perder.kgPerWeek, -GOALS.ganhar.kgPerWeek);
     assert.equal(GOALS.manter.kgPerWeek, 0);
+  });
+});
+
+describe("produtos de marca (assets/marcas.json)", () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+  const data = JSON.parse(readFileSync(join(root, "assets/marcas.json"), "utf8"));
+  const marcas = parseMarcas(data);
+
+  test("cita a Open Food Facts e a licença, e o app também", () => {
+    assert.match(data.source, /Open Food Facts/);
+    assert.equal(data.license, "ODbL 1.0");
+    assert.match(BRAND_SOURCE, /Open Food Facts/);
+    assert.match(BRAND_SOURCE, /confira a sua embalagem/);
+  });
+  test("tem as marcas pedidas: Ninho e as principais marcas de whey", () => {
+    const text = marcas.map((m) => m.name).join(" | ");
+    for (const brand of ["Ninho", "Molico", "Growth", "Max Titanium", "Dux", "Integralmédica", "Probiótica", "Black Skull"]) assert.match(text, new RegExp(brand), brand);
+    assert.ok(searchFoods(marcas, "ninho").length >= 3);
+    assert.ok(searchFoods(marcas, "whey").length >= 6);
+  });
+  test("ids únicos, com código de barras, e todo item tem os quatro macros", () => {
+    assert.equal(new Set(marcas.map((m) => m.id)).size, marcas.length);
+    for (const m of marcas) {
+      assert.match(m.id, /^marca:\d{8,14}$/, m.name);
+      for (const k of ["energy_kcal", "protein_g", "carbohydrate_g", "lipids_g"]) assert.equal(typeof m.per100[k], "number", `${m.name}: ${k}`);
+    }
+  });
+  test("as calorias batem com os macros em todos os itens", () => {
+    for (const m of marcas) {
+      const { energy_kcal: k, protein_g: p, carbohydrate_g: c, lipids_g: l } = m.per100;
+      assert.ok(Math.abs(k - (4 * p + 4 * c + 9 * l)) <= 0.12 * k + 10, `${m.name}: ${k} kcal vs ${4 * p + 4 * c + 9 * l}`);
+    }
+  });
+  test("whey tem faixa de calorias e proteína coerente, e leite líquido vem em ml", () => {
+    for (const m of marcas.filter((x) => /whey/i.test(x.name))) {
+      assert.ok(m.per100.energy_kcal >= 350 && m.per100.energy_kcal <= 450, m.name);
+      assert.ok(m.per100.protein_g >= 60, m.name);
+    }
+    const uht = marcas.filter((m) => /UHT/.test(m.name));
+    assert.ok(uht.length >= 2);
+    for (const m of uht) { assert.equal(m.unit, "ml", m.name); assert.ok(m.per100.energy_kcal < 100, m.name); }
+    for (const m of marcas.filter((x) => x.unit === "g")) assert.ok(m.per100.energy_kcal > 100, m.name);
+  });
+  test("o leite em pó Ninho integral confere com um valor de rótulo conhecido", () => {
+    const ninho = marcas.find((m) => /pó integral Ninho/.test(m.name));
+    assert.ok(ninho.per100.energy_kcal > 480 && ninho.per100.energy_kcal < 520);
+    assert.equal(ninho.source, "marca");
+    assert.match(ninho.category, /Marcas/);
+  });
+  test("registrar um produto líquido guarda a unidade em ml", () => {
+    const leite = marcas.find((m) => m.unit === "ml");
+    let s = addFoodEntry(emptyState(), { name: leite.name, per100: leite.per100, g: 200, unit: unitOf(leite) }, KEY, "e1", NOW);
+    assert.equal(entriesOf(s, KEY)[0].u, "ml");
+    assert.ok(Math.abs(dayTotals(s, KEY).totals.energy_kcal - leite.per100.energy_kcal * 2) < 0.01);
+    s = addFoodEntry(emptyState(), { name: "A", per100: { energy_kcal: 100 }, g: 100 }, KEY, "e2", NOW);
+    assert.equal(entriesOf(s, KEY)[0].u, undefined);
+    assert.equal(unitOf({ unit: "ml" }), "ml");
+    assert.equal(unitOf({ u: "ml" }), "ml");
+    assert.equal(unitOf({}), "g");
+  });
+  test("uma colher de whey de 30 g soma calorias e proteína de verdade", () => {
+    const whey = marcas.find((m) => /Top Whey/.test(m.name));
+    const s = addFoodEntry(emptyState(), { name: whey.name, per100: whey.per100, g: 30 }, KEY, "e1", NOW);
+    const { totals } = dayTotals(s, KEY);
+    assert.ok(totals.energy_kcal > 115 && totals.energy_kcal < 135, String(totals.energy_kcal));
+    assert.ok(totals.protein_g > 22 && totals.protein_g < 25, String(totals.protein_g));
+  });
+});
+
+describe("orçamento de calorias e soma por refeição", () => {
+  const profile = { ...base, kcalManual: null };
+  const withProfile = (extra = {}) => ({ ...saveNutrition({ ...emptyState(), weights: [{ kg: 70 }] }, profile, NOW), ...extra });
+  const food = (g, kcal = 100) => ({ name: "Item", per100: { energy_kcal: kcal }, g });
+
+  test("sem perfil, o orçamento avisa que falta calcular", () => {
+    assert.deepEqual(kcalBudget(emptyState(), NOW, KEY), { ok: false, reason: "sem-perfil" });
+  });
+  test("perfil sem peso fica incompleto, com a lista do que falta", () => {
+    const s = saveNutrition(emptyState(), profile, NOW);
+    const b = kcalBudget(s, NOW, KEY);
+    assert.equal(b.ok, false);
+    assert.equal(b.reason, "incompleto");
+    assert.ok(b.errors.some((e) => /peso/.test(e)));
+  });
+  test("a meta começa cheia e cada alimento registrado desconta dela", () => {
+    let s = withProfile();
+    assert.deepEqual([kcalBudget(s, NOW, KEY).target, kcalBudget(s, NOW, KEY).eaten, kcalBudget(s, NOW, KEY).remaining], [2560, 0, 2560]);
+    s = addFoodEntry(s, { name: "Arroz", per100: { energy_kcal: 120 }, g: 150 }, KEY, "e1", NOW); // 180 kcal
+    s = addFoodEntry(s, food(100, 250), KEY, "e2", NOW); // 250 kcal
+    const b = kcalBudget(s, NOW, KEY);
+    assert.deepEqual([b.eaten, b.remaining, b.over], [430, 2130, false]);
+    assert.equal(b.pct, 17);
+  });
+  test("remover um alimento devolve as calorias ao orçamento", () => {
+    let s = addFoodEntry(withProfile(), food(100, 500), KEY, "e1", NOW);
+    assert.equal(kcalBudget(s, NOW, KEY).remaining, 2060);
+    s = removeFoodEntry(s, KEY, "e1", NOW);
+    assert.equal(kcalBudget(s, NOW, KEY).remaining, 2560);
+  });
+  test("passar da meta mostra o excesso e limita a barra em 100%", () => {
+    const s = addFoodEntry(withProfile(), food(1000, 300), KEY, "e1", NOW); // 3.000 kcal
+    const b = kcalBudget(s, NOW, KEY);
+    assert.deepEqual([b.eaten, b.remaining, b.over, b.pct], [3000, -440, true, 100]);
+  });
+  test("para perder peso a meta é menor do que para manter, e o orçamento usa a meta do objetivo", () => {
+    const lose = saveNutrition({ ...emptyState(), weights: [{ kg: 70 }] }, { ...profile, goal: "perder" }, NOW);
+    const b = kcalBudget(lose, NOW, KEY);
+    assert.equal(b.target, 2010);
+    assert.equal(b.goal, "perder");
+    assert.ok(b.target < kcalBudget(withProfile(), NOW, KEY).target);
+  });
+  test("meta digitada vale no orçamento, e esconder números é repassado", () => {
+    const s = saveNutrition({ ...emptyState(), weights: [{ kg: 70 }] }, { ...profile, kcalManual: 1800, hideNumbers: true }, NOW);
+    const b = kcalBudget(addFoodEntry(s, food(100, 400), KEY, "e1", NOW), NOW, KEY);
+    assert.deepEqual([b.target, b.remaining, b.hide], [1800, 1400, true]);
+  });
+  test("o orçamento é por dia: o que foi registrado ontem não desconta de hoje", () => {
+    const s = addFoodEntry(withProfile(), food(100, 800), "2026-10-05", "e1", NOW);
+    assert.equal(kcalBudget(s, NOW, KEY).eaten, 0);
+    assert.equal(kcalBudget(s, NOW, "2026-10-05").eaten, 800);
+  });
+
+  test("mealKcal soma as calorias dos itens de uma refeição", () => {
+    let s = addFoodEntry(emptyState(), { mealId: "m1", name: "Arroz", per100: { energy_kcal: 120 }, g: 150 }, KEY, "e1", NOW);
+    s = addFoodEntry(s, { mealId: "m1", name: "Feijão", per100: { energy_kcal: 76 }, g: 100 }, KEY, "e2", NOW);
+    assert.equal(mealKcal(entriesOf(s, KEY)), 256);
+    assert.equal(mealKcal([]), 0);
+  });
+  test("entriesByMeal agrupa na ordem da dieta, com a soma de cada refeição e os itens sem refeição por último", () => {
+    const meals = [{ id: "m1", name: "Café da manhã" }, { id: "m2", name: "Almoço" }, { id: "m3", name: "Jantar" }];
+    let s = addFoodEntry(emptyState(), { mealId: "m2", name: "Arroz", per100: { energy_kcal: 100 }, g: 200 }, KEY, "e1", NOW);
+    s = addFoodEntry(s, { mealId: "m1", name: "Pão", per100: { energy_kcal: 250 }, g: 50 }, KEY, "e2", NOW);
+    s = addFoodEntry(s, { name: "Fruta", per100: { energy_kcal: 60 }, g: 100 }, KEY, "e3", NOW);
+    s = addFoodEntry(s, { mealId: "apagada", name: "Bolo", per100: { energy_kcal: 300 }, g: 50 }, KEY, "e4", NOW);
+    const groups = entriesByMeal(s, KEY, meals);
+    assert.deepEqual(groups.map((g) => [g.name, g.kcal]), [["Café da manhã", 125], ["Almoço", 200], ["Sem refeição", 210]]);
+    assert.equal(groups.some((g) => g.name === "Jantar"), false); // refeição vazia não aparece
+  });
+  test("a soma das refeições fecha com o total do dia", () => {
+    const meals = [{ id: "m1", name: "A" }, { id: "m2", name: "B" }];
+    let s = addFoodEntry(emptyState(), { mealId: "m1", name: "X", per100: { energy_kcal: 123 }, g: 100 }, KEY, "e1", NOW);
+    s = addFoodEntry(s, { mealId: "m2", name: "Y", per100: { energy_kcal: 211 }, g: 100 }, KEY, "e2", NOW);
+    s = addFoodEntry(s, { name: "Z", per100: { energy_kcal: 66 }, g: 100 }, KEY, "e3", NOW);
+    const sum = entriesByMeal(s, KEY, meals).reduce((acc, g) => acc + g.kcal, 0);
+    assert.equal(sum, Math.round(dayTotals(s, KEY).totals.energy_kcal));
+  });
+});
+describe("alimento próprio copiado de um produto líquido", () => {
+  test("mantém a unidade ml; os demais ficam em g", () => {
+    const ml = saveCustomFood(emptyState(), { name: "Meu leite", energy_kcal: 60, unit: "ml" }, "c1", NOW);
+    assert.equal(activeCustomFoods(ml)[0].unit, "ml");
+    const g = saveCustomFood(emptyState(), { name: "Minha barra", energy_kcal: 400 }, "c2", NOW);
+    assert.equal(activeCustomFoods(g)[0].unit, "g");
+    const tampered = saveCustomFood(emptyState(), { name: "X", energy_kcal: 1, unit: "litro" }, "c3", NOW);
+    assert.equal(activeCustomFoods(tampered)[0].unit, "g");
   });
 });

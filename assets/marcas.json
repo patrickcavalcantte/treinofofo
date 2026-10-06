@@ -1,0 +1,212 @@
+{
+ "source": "Open Food Facts (openfoodfacts.org), base aberta sob licença ODbL, com dados enviados por usuários. Seleção feita em 06/10/2026: só produtos cujas calorias batem com os macros e estão na faixa esperada para o tipo de produto. Valores por 100 g (ou 100 ml) conforme o rótulo; o sabor e o lote podem mudar os números, então confira a sua embalagem.",
+ "license": "ODbL 1.0",
+ "items": [
+  {
+   "code": "7891000325858",
+   "name": "Leite em pó integral Ninho Nestlé",
+   "brand": "Nestlé",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 496,
+    "protein_g": 25.6,
+    "carbohydrate_g": 37.6,
+    "lipids_g": 26.8,
+    "sodium_mg": 392
+   }
+  },
+  {
+   "code": "7891000109908",
+   "name": "Leite em pó sem lactose Ninho Nestlé",
+   "brand": "Nestlé",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 448,
+    "protein_g": 18,
+    "carbohydrate_g": 52,
+    "lipids_g": 18.4,
+    "dietary_fiber_g": 0,
+    "sodium_mg": 348
+   }
+  },
+  {
+   "code": "7898215157403",
+   "name": "Leite UHT integral Ninho Nestlé",
+   "brand": "Nestlé",
+   "unit": "ml",
+   "per100": {
+    "energy_kcal": 59,
+    "protein_g": 3.1,
+    "carbohydrate_g": 4.4,
+    "lipids_g": 3.2,
+    "dietary_fiber_g": 0,
+    "sodium_mg": 63
+   }
+  },
+  {
+   "code": "7891000101506",
+   "name": "Leite em pó desnatado Molico Nestlé",
+   "brand": "Nestlé",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 345,
+    "protein_g": 33.5,
+    "carbohydrate_g": 50,
+    "lipids_g": 0,
+    "dietary_fiber_g": 0
+   }
+  },
+  {
+   "code": "7898215157496",
+   "name": "Leite UHT desnatado Molico Nestlé",
+   "brand": "Nestlé",
+   "unit": "ml",
+   "per100": {
+    "energy_kcal": 33,
+    "protein_g": 3.2,
+    "carbohydrate_g": 5,
+    "lipids_g": 0
+   }
+  },
+  {
+   "code": "7891000100103",
+   "name": "Leite condensado Moça Nestlé",
+   "brand": "Nestlé",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 325,
+    "protein_g": 7,
+    "carbohydrate_g": 55,
+    "lipids_g": 8,
+    "dietary_fiber_g": 0,
+    "sodium_mg": 112
+   }
+  },
+  {
+   "code": "7891000379691",
+   "name": "Achocolatado em pó Nescau Nestlé",
+   "brand": "Nestlé",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 380,
+    "protein_g": 3,
+    "carbohydrate_g": 85,
+    "lipids_g": 2,
+    "dietary_fiber_g": 4.5,
+    "sodium_mg": 50
+   }
+  },
+  {
+   "code": "7898930772080",
+   "name": "Whey Protein concentrado Growth",
+   "brand": "Growth",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 423.3,
+    "protein_g": 76.7,
+    "carbohydrate_g": 14,
+    "lipids_g": 6.7
+   }
+  },
+  {
+   "code": "7898629561438",
+   "name": "Top Whey 3W Max Titanium",
+   "brand": "Max Titanium",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 415,
+    "protein_g": 77.5,
+    "carbohydrate_g": 11.5,
+    "lipids_g": 6.5
+   }
+  },
+  {
+   "code": "7899941201811",
+   "name": "100% Whey (morango) Max Titanium",
+   "brand": "Max Titanium",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 427,
+    "protein_g": 70,
+    "carbohydrate_g": 18.7,
+    "lipids_g": 8,
+    "sodium_mg": 550
+   }
+  },
+  {
+   "code": "7898641070345",
+   "name": "Whey Protein concentrado (chocolate) Dux Nutrition",
+   "brand": "Dux Nutrition",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 400,
+    "protein_g": 71.4,
+    "carbohydrate_g": 12.9,
+    "lipids_g": 7.1,
+    "dietary_fiber_g": 2.1
+   }
+  },
+  {
+   "code": "7898641073803",
+   "name": "Whey Protein isolado (cookies) Dux Nutrition",
+   "brand": "Dux Nutrition",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 383.3,
+    "protein_g": 80,
+    "carbohydrate_g": 9.3,
+    "lipids_g": 3
+   }
+  },
+  {
+   "code": "7896311761753",
+   "name": "Whey 100% Integralmédica",
+   "brand": "Integralmédica",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 396.7,
+    "protein_g": 66.7,
+    "carbohydrate_g": 17.7,
+    "lipids_g": 6.7
+   }
+  },
+  {
+   "code": "7896438200241",
+   "name": "Whey Protein Probiótica",
+   "brand": "Probiótica",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 400,
+    "protein_g": 75,
+    "carbohydrate_g": 10.3,
+    "lipids_g": 6.6,
+    "sodium_mg": 191
+   }
+  },
+  {
+   "code": "7898708732759",
+   "name": "Whey 100% HD Black Skull",
+   "brand": "Black Skull",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 416.7,
+    "protein_g": 70,
+    "carbohydrate_g": 19.7,
+    "lipids_g": 6.3
+   }
+  },
+  {
+   "code": "7896715600948",
+   "name": "Albumina Naturovos",
+   "brand": "Naturovos",
+   "unit": "g",
+   "per100": {
+    "energy_kcal": 346.4,
+    "protein_g": 78.6,
+    "carbohydrate_g": 8.2,
+    "lipids_g": 1.8,
+    "dietary_fiber_g": 0.4
+   }
+  }
+ ]
+}

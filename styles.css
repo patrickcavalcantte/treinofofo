@@ -718,3 +718,16 @@ h3.slot { font-family: var(--wide); font-stretch: 112%; font-size: 1rem; color: 
 .choice-row { display: flex; align-items: flex-start; gap: 0.625rem; margin: 0 0 1rem; }
 .choice-row input { width: 1.25rem; height: 1.25rem; margin-top: 0.125rem; accent-color: var(--cobalt); flex: none; }
 .nutri-form select { width: 100%; }
+/* ---------- Orçamento de calorias e soma por refeição ---------- */
+
+.budget { background: var(--surface); border: 2px solid var(--line); border-radius: 1rem; padding: 0.875rem 1rem; margin: 0.75rem 0 0.25rem; }
+.budget.over { border-color: #C2342B; }
+.budget-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.5rem; text-align: center; }
+.budget-nums span { font-size: 0.8125rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.budget-nums strong { display: block; font-family: var(--wide); font-stretch: 125%; font-weight: 800; font-size: 1.5rem; color: var(--ink); letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+.budget.over .budget-nums span:last-child strong { color: #C2342B; }
+.budget-line { text-align: center; margin: 0.5rem 0 0; }
+.budget-line strong { font-size: 1.25rem; }
+.meal-kcal { font-family: var(--body); font-stretch: 100%; font-weight: 600; font-size: 0.9375rem; color: var(--muted); margin-left: 0.375rem; font-variant-numeric: tabular-nums; }
+.meal-group { margin-top: 0.75rem; }
+.meal-group h3 { font-family: var(--wide); font-stretch: 112%; font-size: 1.0625rem; margin: 0; }

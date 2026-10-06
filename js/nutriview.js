@@ -1,8 +1,8 @@
 // Telas de nutrição: resumo do dia, metas e registro de alimentos. Só montam HTML; os eventos ficam em app.js.
 import { esc } from "./dom.js";
 import {
-  NUTRIENTS, ACTIVITY, GOALS, FORMULAS, MICRO_REFS, NUTRITION_DISCLAIMER, FOOD_SOURCE, DRI_SOURCE,
-  dailyTargets, dayTotals, entriesOf, intakeStatus, portionOf, latestWeightKg, searchFoods,
+  NUTRIENTS, ACTIVITY, GOALS, FORMULAS, MICRO_REFS, NUTRITION_DISCLAIMER, FOOD_SOURCE, DRI_SOURCE, BRAND_SOURCE,
+  dailyTargets, dayTotals, entriesOf, entriesByMeal, kcalBudget, intakeStatus, portionOf, latestWeightKg, searchFoods, unitOf,
 } from "./nutrition.js";
 import { activeMeals } from "./logic.js";
 
@@ -32,7 +32,7 @@ function dayLabel(key, todayKey) {
 export function mealFoodsHtml(entries, hideNumbers, dayKey) {
   if (!entries.length) return "";
   return `<ul class="food-list">${entries.map((e) => `
-    <li><span>${esc(e.name)} <span class="small">${num(e.g)} g${hideNumbers ? "" : ` · ${num(entryKcal(e))} kcal`}</span></span>
+    <li><span>${esc(e.name)} <span class="small">${num(e.g)} ${unitOf(e)}${hideNumbers ? "" : ` · ${num(entryKcal(e))} kcal`}</span></span>
       <button type="button" class="switch danger" data-action="food-remove" data-day="${esc(dayKey)}" data-id="${esc(e.id)}" aria-label="Remover ${esc(e.name)}">Remover</button></li>`).join("")}
   </ul>`;
 }
@@ -104,6 +104,7 @@ export function renderNutri(state, now, day, todayKey) {
         <div class="ring-inner">${hide ? `<strong>${esc(STATUS_TEXT[kcalStatus])}</strong>` : `<strong>${num(kcal)}</strong><span class="small">de ${num(t.energy_kcal)} kcal</span>`}</div>
       </div>
     </div>
+    ${budgetLine(kcalBudget(state, now, day), hide)}
     ${result.warnings.map((w) => `<p class="notice">${esc(w)}</p>`).join("")}
 
     <h2 class="section">Macros</h2>
@@ -114,10 +115,11 @@ export function renderNutri(state, now, day, todayKey) {
     <p class="small">Os totais contam só o que a TACO mediu. Quando um alimento não tem dado de um nutriente, aparece "sem dado": o total pode estar maior do que o mostrado.</p>
 
     <h2 class="section">Alimentos do dia</h2>
-    ${entries.length ? `<ul class="food-list">${entries.map((e) => `
-      <li><span>${esc(e.name)} <span class="small">${num(e.g)} g${hide ? "" : ` · ${num(entryKcal(e))} kcal`}${e.mealId && meals.has(e.mealId) ? ` · ${esc(meals.get(e.mealId))}` : ""}</span></span>
-        <button type="button" class="switch danger" data-action="food-remove" data-day="${esc(day)}" data-id="${esc(e.id)}" aria-label="Remover ${esc(e.name)}">Remover</button></li>`).join("")}</ul>` : `<p class="small">Nenhum alimento registrado neste dia.</p>`}
-    <button class="cta" type="button" data-action="food-add" data-day="${esc(day)}">Adicionar alimento</button>
+    ${entries.length ? entriesByMeal(state, day, activeMeals(state)).map((g) => `
+      <section class="meal-group">
+        <h3>${esc(g.name)}${hide ? "" : ` <span class="meal-kcal">${num(g.kcal)} kcal</span>`}</h3>
+        ${mealFoodsHtml(g.entries, hide, day)}
+      </section>`).join("") : `<p class="small">Nenhum alimento registrado neste dia.</p>`}    <button class="cta" type="button" data-action="food-add" data-day="${esc(day)}">Adicionar alimento</button>
     <button class="cta ghost" type="button" data-action="nutri-setup">Editar metas</button>
 
     <details class="how"><summary>Como as metas foram calculadas</summary>
@@ -127,6 +129,15 @@ export function renderNutri(state, now, day, todayKey) {
       Proteínas por quilo de peso, gorduras em 25% das calorias, carboidratos no restante e fibras em 14 g por 1.000 kcal.</p>
     </details>
     ${disclaimer()}`;
+}
+
+/** Linha "Restam X kcal" abaixo do anel. Com números escondidos, só a situação. */
+export function budgetLine(b, hide) {
+  if (!b.ok) return "";
+  if (hide) return `<p class="budget-line" role="status">${esc(STATUS_TEXT[b.status] ? `Hoje você está ${STATUS_TEXT[b.status]}.` : "")}</p>`;
+  const goalText = b.goal === "perder" || b.goal === "perder_devagar" ? "para perder peso" : b.goal === "ganhar" || b.goal === "ganhar_devagar" ? "para ganhar massa" : "para manter o peso";
+  return `<p class="budget-line" role="status"><strong>${b.over ? `${num(-b.remaining)} kcal acima da meta` : `Restam ${num(b.remaining)} kcal`}</strong><br>
+    <span class="small">Meta de ${num(b.target)} kcal ${esc(goalText)} · ${num(b.eaten)} registradas</span></p>`;
 }
 
 function disclaimer() {
@@ -192,15 +203,15 @@ export function renderFoodResults(foods, query, hide = false, limit = 30) {
   return `<ul class="food-results">${found.map((f) => `
     <li><button type="button" data-action="food-pick" data-id="${esc(f.id)}">
       <strong>${esc(f.name)}</strong>
-      <span class="small">${esc(f.category)}${hide ? "" : ` · ${num(f.per100.energy_kcal ?? 0)} kcal por 100 g`}</span>
+      <span class="small">${esc(f.category)}${hide ? "" : ` · ${num(f.per100.energy_kcal ?? 0)} kcal por 100 ${unitOf(f)}`}</span>
     </button></li>`).join("")}</ul>`;
 }
 
-export function foodPreview(per100, g, hide) {
+export function foodPreview(per100, g, hide, unit = "g") {
   const grams = Number(String(g).replace(",", "."));
   if (!Number.isFinite(grams) || grams <= 0) return `<p class="small">Informe a quantidade em gramas.</p>`;
   const p = portionOf(per100, grams);
-  if (hide) return `<p class="small">${num(grams)} g</p>`;
+  if (hide) return `<p class="small">${num(grams)} ${unit}</p>`;
   return `<p class="small"><strong>${num(p.energy_kcal ?? 0)} kcal</strong> · proteínas ${num(p.protein_g ?? 0)} g · carboidratos ${num(p.carbohydrate_g ?? 0)} g · gorduras ${num(p.lipids_g ?? 0)} g</p>`;
 }
 
@@ -213,9 +224,10 @@ export function renderFood(state, ctx, foods, loading) {
     const f = ctx.custom ?? {};
     return `${back}
       <h1 class="display">Novo alimento</h1>
-      <p class="lede">Digite os valores do rótulo, por 100 g do alimento.</p>
+      <p class="lede">Digite os valores do rótulo, por 100 ${f.unit === "ml" ? "ml" : "g"} do alimento.</p>
       ${ctx.error ? `<p class="login-msg" role="alert">${esc(ctx.error)}</p>` : ""}
       <form class="login" data-action="food-custom-save" novalidate>
+        <input type="hidden" name="unit" value="${esc(f.unit === "ml" ? "ml" : "g")}">
         <label class="field-block">Nome<input name="name" type="text" maxlength="80" value="${esc(f.name ?? "")}" required></label>
         <label class="field-block">Calorias (kcal)<input name="energy_kcal" inputmode="decimal" value="${esc(f.energy_kcal ?? "")}"></label>
         <label class="field-block">Proteínas (g)<input name="protein_g" inputmode="decimal" value="${esc(f.protein_g ?? "")}"></label>
@@ -232,14 +244,15 @@ export function renderFood(state, ctx, foods, loading) {
     const s = ctx.selected;
     return `${back}
       <h1 class="display">${esc(s.name)}</h1>
-      <p class="small">${esc(s.category)}${hide ? "" : ` · ${num(s.per100.energy_kcal ?? 0)} kcal por 100 g`}</p>
+      <p class="small">${esc(s.category)}${hide ? "" : ` · ${num(s.per100.energy_kcal ?? 0)} kcal por 100 ${unitOf(s)}`}</p>
+      ${s.source === "marca" ? `<p class="notice">Valores do rótulo, de uma base aberta com dados enviados por usuários. O sabor e o lote podem mudar os números: confira a sua embalagem. <button type="button" class="switch" data-action="food-copy">Os meus valores são diferentes</button></p>` : ""}
       ${ctx.error ? `<p class="login-msg" role="alert">${esc(ctx.error)}</p>` : ""}
       <form class="login" data-action="food-save" novalidate>
-        <label class="field-block">Quantidade (g)
+        <label class="field-block">Quantidade (${unitOf(s)})
           <input name="g" id="food-g" inputmode="decimal" value="${esc(ctx.g ?? "100")}" required>
         </label>
-        <div class="quick" role="group" aria-label="Quantidades comuns">${[50, 100, 150, 200].map((q) => `<button type="button" class="chip" data-action="food-qty" data-g="${q}">${q} g</button>`).join("")}</div>
-        <div id="food-preview" aria-live="polite">${foodPreview(s.per100, ctx.g ?? "100", hide)}</div>
+        <div class="quick" role="group" aria-label="Quantidades comuns">${[50, 100, 150, 200].map((q) => `<button type="button" class="chip" data-action="food-qty" data-g="${q}">${q} ${unitOf(s)}</button>`).join("")}</div>
+        <div id="food-preview" aria-live="polite">${foodPreview(s.per100, ctx.g ?? "100", hide, unitOf(s))}</div>
         <label class="field-block">Refeição
           <select name="mealId"><option value="">Sem refeição</option>${meals.map((m) => `<option value="${esc(m.id)}" ${ctx.mealId === m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select>
         </label>
@@ -255,5 +268,6 @@ export function renderFood(state, ctx, foods, loading) {
     </label>
     <div id="food-results" aria-live="polite">${loading ? `<p class="small">Carregando a tabela de alimentos...</p>` : renderFoodResults(foods, ctx.query ?? "", hide)}</div>
     <button class="cta ghost" type="button" data-action="food-custom">Cadastrar um alimento meu</button>
-    <p class="small">Alimentos: ${esc(FOOD_SOURCE)}</p>`;
+    <p class="small">Alimentos: ${esc(FOOD_SOURCE)}</p>
+    <p class="small">${esc(BRAND_SOURCE)}</p>`;
 }

@@ -9,7 +9,7 @@ import * as sync from "./sync.js";
 import { initChat } from "./chatui.js";
 import { esc } from "./dom.js";
 import { renderNutri, renderNutriSetup, renderFood, renderFoodResults, foodPreview } from "./nutriview.js";
-import { saveNutrition, dailyTargets, addFoodEntry, removeFoodEntry, saveCustomFood, activeCustomFoods, parseTaco, latestWeightKg } from "./nutrition.js";
+import { saveNutrition, dailyTargets, addFoodEntry, removeFoodEntry, saveCustomFood, activeCustomFoods, parseTaco, parseMarcas, latestWeightKg, unitOf } from "./nutrition.js";
 import { loadPdfjs, extractLayout, mealsFromLayout, validatePdf } from "./dietplan.js";
 import { renderOnboarding, freshOnboarding, prevStep, nextStep } from "./onboardingview.js";
 import { GOALS, DISCLAIMER, SOURCES, EVIDENCE_LIMIT, buildProfile, skippedProfile, needsOnboarding, cleanName, greeting } from "./onboarding.js";
@@ -26,16 +26,19 @@ let view = state.draft ? "workout" : "home";
 let nutriDay = null; // null = hoje
 let setupDraft = null; // { values, errors } enquanto o formulário de metas tem erro
 let foodCtx = null; // { from, day, mealId, query, selected, g, mode, custom, error }
-let tacoFoods = null;
+let tacoFoods = null; // TACO + marcas, carregadas juntas
 let tacoLoading = null;
 const todayKey = () => dayKey(new Date());
 const allFoods = () => [...activeCustomFoods(state), ...(tacoFoods ?? [])];
+const fetchJson = (url) => fetch(url).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
 
 async function loadTaco() {
   if (tacoFoods) return;
-  tacoLoading ??= fetch("assets/taco.json")
-    .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-    .then((data) => { tacoFoods = parseTaco(data); })
+  tacoLoading ??= Promise.all([
+    fetchJson("assets/taco.json"),
+    fetchJson("assets/marcas.json").catch(() => ({ items: [] })), // as marcas são um extra: sem elas a busca ainda funciona
+  ])
+    .then(([taco, marcas]) => { tacoFoods = [...parseMarcas(marcas), ...parseTaco(taco)]; })
     .catch((err) => { tacoLoading = null; throw err; });
   await tacoLoading;
 }
@@ -737,10 +740,14 @@ app.addEventListener("click", (e) => {
       foodCtx.g = t.dataset.g;
       const input = document.getElementById("food-g");
       if (input) input.value = foodCtx.g;
-      document.getElementById("food-preview").innerHTML = foodPreview(foodCtx.selected.per100, foodCtx.g, state.nutrition?.hideNumbers === true);
+      document.getElementById("food-preview").innerHTML = foodPreview(foodCtx.selected.per100, foodCtx.g, state.nutrition?.hideNumbers === true, unitOf(foodCtx.selected));
       break;
     }
     case "food-custom": foodCtx.mode = "custom"; foodCtx.custom = {}; foodCtx.error = null; render(); window.scrollTo(0, 0); break;
+    case "food-copy": // a embalagem da pessoa é diferente: vira um alimento próprio, já com os valores para ela corrigir
+      foodCtx.custom = { name: foodCtx.selected.name, unit: unitOf(foodCtx.selected), ...foodCtx.selected.per100 };
+      foodCtx.mode = "custom"; foodCtx.error = null; render(); window.scrollTo(0, 0);
+      break;
     case "food-custom-cancel": foodCtx.mode = "search"; foodCtx.error = null; render(); break;
     case "food-remove":
       state = removeFoodEntry(state, t.dataset.day, t.dataset.id, new Date());
@@ -1006,7 +1013,7 @@ app.addEventListener("submit", (e) => {
   try {
     foodCtx.g = String(fd.get("g") ?? "");
     foodCtx.mealId = fd.get("mealId") || null;
-    state = addFoodEntry(state, { mealId: foodCtx.mealId, name: foodCtx.selected.name, per100: foodCtx.selected.per100, g: foodCtx.g }, foodCtx.day, newId(), now);
+    state = addFoodEntry(state, { mealId: foodCtx.mealId, name: foodCtx.selected.name, per100: foodCtx.selected.per100, g: foodCtx.g, unit: unitOf(foodCtx.selected) }, foodCtx.day, newId(), now);
     persist();
     view = foodCtx.from === "nutri" ? "nutri" : "diet"; foodCtx = null;
   } catch (err) { foodCtx.error = err.message; }
@@ -1021,7 +1028,7 @@ app.addEventListener("input", (e) => {
       ? renderFoodResults(allFoods(), foodCtx.query, state.nutrition?.hideNumbers === true) : `<p class="small">Carregando a tabela de alimentos...</p>`;
   } else if (e.target.id === "food-g" && foodCtx.selected) {
     foodCtx.g = e.target.value;
-    document.getElementById("food-preview").innerHTML = foodPreview(foodCtx.selected.per100, foodCtx.g, state.nutrition?.hideNumbers === true);
+    document.getElementById("food-preview").innerHTML = foodPreview(foodCtx.selected.per100, foodCtx.g, state.nutrition?.hideNumbers === true, unitOf(foodCtx.selected));
   }
 });
 
