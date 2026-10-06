@@ -806,3 +806,5 @@ h3.slot { font-family: var(--wide); font-stretch: 112%; font-size: 1rem; color: 
 .fav-row > button:first-child { flex: 1; }
 .fav-row .switch { width: auto; flex: none; align-self: center; }
 .tour-photo { display: block; width: 100%; height: auto; border-radius: 0.875rem; margin-bottom: 0.75rem; }
+.act-list { max-height: 18rem; overflow-y: auto; overscroll-behavior: contain; gap: 0.375rem; padding-right: 0.25rem; }
+.act-list button { padding: 0.5rem 0.75rem; border-radius: 0.625rem; }

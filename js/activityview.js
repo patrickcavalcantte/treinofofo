@@ -5,7 +5,6 @@ import {
   activityPrefs, activityEntries, activityTotals, activityCredit, activityKcal, favoriteList, searchActivities, norm,
 } from "./activities.js";
 
-const MAX_RESULTS = 40;
 const QUICK_MIN = [15, 30, 45, 60];
 const clock = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 const met = (v) => String(v).replace(".", ",");
@@ -46,9 +45,8 @@ function item(a, label) {
 export function renderActivityResults(items, query) {
   const found = searchActivities(items, query);
   if (!found.length) return `<p class="small">Nada encontrado. Tente outra palavra, como "dança", "caminhada" ou "limpeza".</p>`;
-  const shown = found.slice(0, MAX_RESULTS);
-  return `<ul class="food-results">${shown.map((a) => item(a)).join("")}</ul>
-    ${found.length > shown.length ? `<p class="small">Mostrando ${shown.length} de ${found.length}. Digite mais letras para afinar.</p>` : ""}
+  return `<p class="small">${found.length} ${found.length === 1 ? "atividade" : "atividades"}. Role a lista ou digite para filtrar.</p>
+    <ul class="food-results act-list" tabindex="0" aria-label="Atividades">${found.map((a) => item(a)).join("")}</ul>
     ${norm(query) ? `<p class="small">Não achou exatamente a sua? Escolha a mais parecida e salve como favorita com o seu nome. O valor usado é o da atividade oficial.</p>` : ""}`;
 }
 
