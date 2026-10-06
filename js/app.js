@@ -8,6 +8,8 @@ import {
 import * as sync from "./sync.js";
 import { initChat } from "./chatui.js";
 import { esc } from "./dom.js";
+import { renderNutri, renderNutriSetup, renderFood, renderFoodResults, foodPreview } from "./nutriview.js";
+import { saveNutrition, dailyTargets, addFoodEntry, removeFoodEntry, saveCustomFood, activeCustomFoods, parseTaco, latestWeightKg } from "./nutrition.js";
 import { loadPdfjs, extractLayout, mealsFromLayout, validatePdf } from "./dietplan.js";
 import { renderOnboarding, freshOnboarding, prevStep, nextStep } from "./onboardingview.js";
 import { GOALS, DISCLAIMER, SOURCES, EVIDENCE_LIMIT, buildProfile, skippedProfile, needsOnboarding, cleanName, greeting } from "./onboarding.js";
@@ -20,6 +22,24 @@ const app = document.getElementById("app");
 const store = createStore(safeLocalStorage());
 let state = store.load();
 let view = state.draft ? "workout" : "home";
+// Nutrição: dia em exibição, tela de busca de alimentos e a tabela TACO (carregada só quando alguém abre a busca).
+let nutriDay = null; // null = hoje
+let setupDraft = null; // { values, errors } enquanto o formulário de metas tem erro
+let foodCtx = null; // { from, day, mealId, query, selected, g, mode, custom, error }
+let tacoFoods = null;
+let tacoLoading = null;
+const todayKey = () => dayKey(new Date());
+const allFoods = () => [...activeCustomFoods(state), ...(tacoFoods ?? [])];
+
+async function loadTaco() {
+  if (tacoFoods) return;
+  tacoLoading ??= fetch("assets/taco.json")
+    .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then((data) => { tacoFoods = parseTaco(data); })
+    .catch((err) => { tacoLoading = null; throw err; });
+  await tacoLoading;
+}
+
 let pendingPlan = null; // PDF escolhido, à espera da confirmação do usuário
 let onb = null; // respostas do onboarding em andamento
 let editing = null; // { type: "med" | "meal", id } enquanto um formulário de remédio ou refeição está aberto
@@ -528,6 +548,9 @@ function render() {
   else if (view === "habit") renderHabit();
   else if (view === "weight") renderWeight();
   else if (view === "treino") renderTreino();
+  else if (view === "nutri") app.innerHTML = renderNutri(state, new Date(), nutriDay ?? todayKey(), todayKey());
+  else if (view === "nutri-setup") app.innerHTML = renderNutriSetup(state, new Date(), setupDraft?.values ?? null, setupDraft?.errors ?? []);
+  else if (view === "food" && foodCtx) app.innerHTML = renderFood(state, foodCtx, allFoods(), !tacoFoods && !foodCtx.loadError);
   else if (view === "meds") app.innerHTML = renderMedsView(state, new Date(), editing);
   else if (view === "diet") app.innerHTML = renderDietView(state, new Date(), editing);
   else { view = "home"; renderHome(); }
@@ -686,6 +709,44 @@ app.addEventListener("click", (e) => {
       const y = window.scrollY; render(); window.scrollTo(0, y);
       break;
     }
+    case "nutri-setup": setupDraft = null; view = "nutri-setup"; render(); window.scrollTo(0, 0); break;
+    case "nutri-back": setupDraft = null; view = "nutri"; render(); window.scrollTo(0, 0); break;
+    case "nutri-day": {
+      const d = new Date(`${nutriDay ?? todayKey()}T12:00:00`);
+      d.setDate(d.getDate() + Number(t.dataset.delta));
+      nutriDay = dayKey(d) > todayKey() ? null : dayKey(d);
+      render();
+      break;
+    }
+    case "food-add":
+      foodCtx = { from: view, day: t.dataset.day || todayKey(), mealId: t.dataset.meal || null, query: "", selected: null, g: "100", mode: "search", error: null };
+      view = "food"; render(); window.scrollTo(0, 0);
+      loadTaco()
+        .then(() => { if (view === "food") render(); })
+        .catch(() => { if (foodCtx) { foodCtx.loadError = true; foodCtx.error = "Não foi possível carregar a tabela de alimentos. Você ainda pode cadastrar um alimento seu."; } if (view === "food") render(); });
+      break;
+    case "food-back":
+      view = foodCtx?.from === "nutri" ? "nutri" : "diet"; foodCtx = null; render(); window.scrollTo(0, 0);
+      break;
+    case "food-pick":
+      foodCtx.selected = allFoods().find((f) => f.id === t.dataset.id) ?? null; foodCtx.error = null; foodCtx.g = "100";
+      render(); window.scrollTo(0, 0);
+      break;
+    case "food-unpick": foodCtx.selected = null; foodCtx.error = null; render(); break;
+    case "food-qty": {
+      foodCtx.g = t.dataset.g;
+      const input = document.getElementById("food-g");
+      if (input) input.value = foodCtx.g;
+      document.getElementById("food-preview").innerHTML = foodPreview(foodCtx.selected.per100, foodCtx.g, state.nutrition?.hideNumbers === true);
+      break;
+    }
+    case "food-custom": foodCtx.mode = "custom"; foodCtx.custom = {}; foodCtx.error = null; render(); window.scrollTo(0, 0); break;
+    case "food-custom-cancel": foodCtx.mode = "search"; foodCtx.error = null; render(); break;
+    case "food-remove":
+      state = removeFoodEntry(state, t.dataset.day, t.dataset.id, new Date());
+      persist();
+      { const y = window.scrollY; render(); window.scrollTo(0, y); }
+      break;
     case "plan-cancel": pendingPlan = null; editing = null; render(); break;
     case "plan-open": {
       const plan = activeDietPlan(state);
@@ -758,6 +819,7 @@ app.addEventListener("click", (e) => {
     }
     case "go":
       editing = null;
+      if (t.dataset.view === "nutri") nutriDay = null;
       view = t.dataset.view; render(); window.scrollTo(0, 0);
       if (view === "workout") keepAwake(true); // voltando para um treino em andamento
       break;
@@ -908,6 +970,58 @@ app.addEventListener("submit", async (e) => {
   } catch (err) {
     button.disabled = false;
     msg.textContent = `Não foi possível guardar o PDF agora. ${err.message ?? ""}`.trim();
+  }
+});
+
+app.addEventListener("submit", (e) => {
+  const form = e.target.closest("form[data-action='nutri-save'], form[data-action='food-save'], form[data-action='food-custom-save']");
+  if (!form) return;
+  e.preventDefault();
+  const fd = new FormData(form);
+  const now = new Date();
+  if (form.dataset.action === "nutri-save") {
+    const values = {
+      heightCm: fd.get("heightCm"), birthYear: fd.get("birthYear"), activity: fd.get("activity"), goal: fd.get("goal"),
+      formula: fd.get("formula"), microRef: fd.get("microRef"), kcalManual: fd.get("kcalManual"), hideNumbers: fd.get("hideNumbers") === "on",
+    };
+    const check = dailyTargets(values, latestWeightKg(state), now);
+    if (!check.ok) { setupDraft = { values, errors: check.errors }; render(); window.scrollTo(0, 0); return; }
+    state = saveNutrition(state, values, now);
+    persist(); setupDraft = null; view = "nutri"; render(); window.scrollTo(0, 0);
+    return;
+  }
+  if (form.dataset.action === "food-custom-save") {
+    const raw = Object.fromEntries(fd.entries());
+    try {
+      const id = newId();
+      state = saveCustomFood(state, raw, id, now);
+      persist();
+      foodCtx.selected = activeCustomFoods(state).find((f) => f.id === `custom:${id}`);
+      foodCtx.mode = "search"; foodCtx.error = null; foodCtx.g = "100";
+    } catch (err) { foodCtx.custom = raw; foodCtx.error = err.message; }
+    render(); window.scrollTo(0, 0);
+    return;
+  }
+  // food-save
+  try {
+    foodCtx.g = String(fd.get("g") ?? "");
+    foodCtx.mealId = fd.get("mealId") || null;
+    state = addFoodEntry(state, { mealId: foodCtx.mealId, name: foodCtx.selected.name, per100: foodCtx.selected.per100, g: foodCtx.g }, foodCtx.day, newId(), now);
+    persist();
+    view = foodCtx.from === "nutri" ? "nutri" : "diet"; foodCtx = null;
+  } catch (err) { foodCtx.error = err.message; }
+  render(); window.scrollTo(0, 0);
+});
+
+app.addEventListener("input", (e) => {
+  if (view !== "food" || !foodCtx) return;
+  if (e.target.id === "food-q") {
+    foodCtx.query = e.target.value;
+    document.getElementById("food-results").innerHTML = tacoFoods || activeCustomFoods(state).length
+      ? renderFoodResults(allFoods(), foodCtx.query, state.nutrition?.hideNumbers === true) : `<p class="small">Carregando a tabela de alimentos...</p>`;
+  } else if (e.target.id === "food-g" && foodCtx.selected) {
+    foodCtx.g = e.target.value;
+    document.getElementById("food-preview").innerHTML = foodPreview(foodCtx.selected.per100, foodCtx.g, state.nutrition?.hideNumbers === true);
   }
 });
 

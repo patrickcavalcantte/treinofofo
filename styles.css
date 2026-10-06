@@ -678,3 +678,43 @@ h3.slot { font-family: var(--wide); font-stretch: 112%; font-size: 1rem; color: 
 .review-name { display: flex; align-items: center; gap: 0.625rem; }
 .review-meal textarea { width: 100%; padding: 0.625rem; border-radius: 0.625rem; border: 1.5px solid var(--line); background: var(--paper); font-size: 0.9375rem; resize: vertical; }
 .meal-text .subst { display: block; margin-top: 0.625rem; color: var(--ink); }
+/* ---------- Nutrição ---------- */
+
+.day-nav { display: flex; align-items: center; justify-content: center; gap: 1.5rem; margin: 1.25rem 0 0; }
+.day-nav .switch { margin: 0; font-size: 1.75rem; text-decoration: none; padding: 0 0.75rem; }
+.day-nav .switch:disabled { opacity: 0.3; cursor: default; }
+
+.ring-wrap { display: grid; place-items: center; margin: 1.25rem 0 0.5rem; }
+.ring {
+  --accent: var(--cobalt);
+  width: 11rem; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(var(--accent) calc(var(--pct) * 1%), var(--line) 0);
+}
+.ring-inner { width: 8.5rem; aspect-ratio: 1; border-radius: 50%; background: var(--paper); display: grid; place-content: center; text-align: center; padding: 0.5rem; }
+.ring-inner strong { font-family: var(--wide); font-stretch: 125%; font-weight: 800; font-size: 1.75rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+
+.meter-row { margin-top: 0.875rem; }
+.meter-head { display: flex; justify-content: space-between; gap: 1rem; font-weight: 600; }
+.meter-head .small { font-weight: 400; font-variant-numeric: tabular-nums; text-align: right; }
+.meter { height: 0.75rem; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: 0.25rem; }
+.meter span { display: block; height: 100%; border-radius: 999px; background: var(--cobalt); }
+.meter.ok span { background: var(--ok); }
+.meter.near span { background: var(--plate); }
+.meter.over span { background: #C2342B; }
+.incomplete { display: inline-block; margin-top: 0.125rem; font-size: 0.8125rem; color: var(--warn-ink); background: var(--warn-bg); border-radius: 999px; padding: 0 0.5rem; }
+
+.food-list { list-style: none; padding: 0; margin: 0.5rem 0 0; display: grid; gap: 0.25rem; }
+.food-list li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.5rem 0; border-top: 1px solid var(--line); }
+.food-list .switch { margin: 0; flex: none; font-size: 0.875rem; }
+.meal .food-list { margin-top: 0.75rem; }
+.meal > .switch { margin-top: 0.5rem; display: inline-block; }
+
+.food-results { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
+.food-results button { width: 100%; text-align: left; display: grid; gap: 0.125rem; background: var(--surface); border: 2px solid var(--line); border-radius: 0.875rem; padding: 0.75rem 1rem; cursor: pointer; }
+.quick { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: -0.25rem 0 0.75rem; }
+#food-preview { margin: 0 0 1rem; min-height: 1.5rem; }
+.errors { padding-left: 1.25rem; color: #C2342B; display: grid; gap: 0.25rem; }
+.how { margin-top: 1rem; }
+.choice-row { display: flex; align-items: flex-start; gap: 0.625rem; margin: 0 0 1rem; }
+.choice-row input { width: 1.25rem; height: 1.25rem; margin-top: 0.125rem; accent-color: var(--cobalt); flex: none; }
+.nutri-form select { width: 100%; }

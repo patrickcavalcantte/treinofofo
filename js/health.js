@@ -1,5 +1,7 @@
 // Telas de remédios e dieta. Só montam HTML a partir do estado; os eventos ficam em app.js.
 import { esc } from "./dom.js";
+import { entriesOf } from "./nutrition.js";
+import { mealFoodsHtml } from "./nutriview.js";
 import {
   SLOTS, UNITS, doseHistory, activeMeds, activeMeals, activeDietPlan, todayDoses, intervalStatus, medAdherence, medDay,
   dietAdherence, dietDay, dayKey, startOfWeek,
@@ -175,6 +177,8 @@ export function renderDietView(state, now, editing) {
       <div class="meal-choices" role="group" aria-label="Como foi: ${esc(m.name)}">
         ${options.map(([v, label]) => `<button type="button" class="meal-btn ${v}" data-action="meal" data-id="${esc(m.id)}" data-status="${v}" aria-pressed="${log[m.id] === v}">${label}</button>`).join("")}
       </div>
+      ${mealFoodsHtml(entriesOf(state, today).filter((e) => e.mealId === m.id), state.nutrition?.hideNumbers === true, today)}
+      <button type="button" class="switch" data-action="food-add" data-meal="${esc(m.id)}" data-day="${today}">+ Adicionar alimento</button>
       ${m.text ? `<details class="meal-details"><summary>Ver o plano desta refeição</summary><p class="meal-text">${mealTextHtml(m.text)}</p></details>` : ""}
     </section>`).join("");
 
@@ -211,8 +215,12 @@ export function renderDietView(state, now, editing) {
   const body = editing?.type === "plan" ? planReview(editing)
     : editing?.type === "meal" ? mealForm(editingMeal)
     : `
-      ${meals.length ? `<h2 class="section">Hoje</h2>${todayHtml}
+      ${meals.length ? `<h2 class="section">Hoje</h2>
+      <button type="button" class="switch" data-action="go" data-view="nutri">Ver nutrientes do dia</button>${todayHtml}
       <h2 class="section">Adesão</h2>${stats(a7, a30, "Segui vale 100%, em parte 50% e fora 0%. Dias sem marcação contam como 0%. O dia de hoje só entra depois da primeira marcação.")}${strip}` : ""}
+      <h2 class="section">Nutrientes</h2>
+      <p class="small" style="margin:0 0 0.75rem">Registre o que você comeu e acompanhe calorias, macros, vitaminas e minerais contra as suas metas.</p>
+      <button class="cta ghost" type="button" data-action="go" data-view="nutri">Nutrientes e metas</button>
       <h2 class="section">Meu plano em PDF</h2>
       ${planCard}
       <h2 class="section">Minhas refeições</h2>

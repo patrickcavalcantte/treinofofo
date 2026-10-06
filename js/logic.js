@@ -6,7 +6,8 @@ export const STORAGE_KEY = "treino-casa:v1";
 
 export function emptyState() {
   return { version: STATE_VERSION, history: [], levels: {}, draft: null, marks: [], weights: [],
-    meds: [], medLog: {}, meals: [], dietLog: {}, profile: null, dietPlan: null };
+    meds: [], medLog: {}, meals: [], dietLog: {}, profile: null, dietPlan: null,
+    nutrition: null, foodLog: {}, customFoods: [] };
 }
 
 // ---------- Datas ----------
@@ -484,6 +485,20 @@ function mergeLogs(older = {}, newer = {}) {
   return out;
 }
 
+/** Entre dois valores com carimbo `updatedAt`, vale o mais recente. */
+function latestBy(a, b) {
+  if (!a) return b ?? null;
+  if (!b) return a;
+  return (a.updatedAt ?? "") >= (b.updatedAt ?? "") ? a : b;
+}
+
+/** Une os registros de alimentos dia a dia; dentro do dia, cada item vale pelo `updatedAt` mais recente. */
+function mergeDays(a = {}, b = {}) {
+  const out = {};
+  for (const day of new Set([...Object.keys(a), ...Object.keys(b)])) out[day] = mergeById(a[day], b[day]);
+  return out;
+}
+
 /** Entre dois valores com carimbo `at`, vale o mais recente. */
 function latestAt(a, b) {
   if (!a) return b ?? null;
@@ -512,6 +527,9 @@ export function mergeStates(a, b) {
     weights: mergeWeights(a.weights, b.weights),
     profile: newer.profile ?? (newer === a ? b.profile : a.profile) ?? null,
     dietPlan: latestAt(a.dietPlan, b.dietPlan),
+    nutrition: latestBy(a.nutrition, b.nutrition),
+    customFoods: mergeById(a.customFoods, b.customFoods),
+    foodLog: mergeDays(a.foodLog, b.foodLog),
     meds: mergeById(a.meds, b.meds),
     meals: mergeById(a.meals, b.meals),
     medLog: mergeLogs(newer === a ? b.medLog : a.medLog, newer.medLog),
