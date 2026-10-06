@@ -66,6 +66,14 @@ export async function uploadPlan(file) {
   return path;
 }
 
+/** Baixa o PDF guardado (só a própria pessoa consegue), para reler o texto sem precisar do arquivo de novo. */
+export async function downloadPlan(path) {
+  const c = await getClient();
+  const { data, error } = await c.storage.from(BUCKET).download(path);
+  if (error) throw error;
+  return data;
+}
+
 /** Link temporário (5 minutos) para abrir o PDF. */
 export async function planUrl(path) {
   const c = await getClient();

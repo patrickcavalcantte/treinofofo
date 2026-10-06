@@ -159,6 +159,91 @@ export function mealsFromLayout(items) {
       text: [m.time ? `Horário: ${m.time}` : "", m.lines.join("\n")].filter(Boolean).join("\n\n"),
     }));
 }
+// ---------- Plano de uma refeição: o que comer e as substituições ----------
+
+const SUBSTITUTION_TITLE = /^Substitui[cç][aã]o\s*\d+\s*$/i;
+
+/** Separa o texto de uma refeição na parte principal e nas substituições ("Substituição 1", "Substituição 2"...). */
+export function splitPlan(text) {
+  const main = [];
+  const subs = [];
+  let current = null;
+  for (const raw of String(text ?? "").split("\n")) {
+    const line = raw.trimEnd();
+    if (SUBSTITUTION_TITLE.test(line.trim())) { current = { title: line.trim(), lines: [] }; subs.push(current); }
+    else (current ? current.lines : main).push(line);
+  }
+  const clean = (lines) => lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return { main: clean(main), subs: subs.map((s) => ({ title: s.title, body: clean(s.lines) })) };
+}
+
+// ---------- Estrutura do plano, para a visualização ----------
+
+const BULLET = /^[-–•]+\s*/;
+const QUOTED_TITLE = /^["“”„].*["“”]$/;
+/** Título em caixa alta (pelo menos 70% das letras maiúsculas), como "VARIAÇÕES DE PREPARAÇÕES SIMILARES (tapioca/pão)". */
+const isUppercaseHeading = (line) => {
+  const letters = line.match(/[A-Za-zÀ-ÿ]/g) ?? [];
+  return line.length >= 10 && letters.length >= 8 && letters.filter((c) => c !== c.toLowerCase()).length / letters.length >= 0.7;
+};
+
+/**
+ * Quebra o texto de uma refeição (ou de uma substituição) em blocos para exibir:
+ * itens (linhas com "-"), receitas (título entre aspas + "Modo de preparo"), observações e separadores "ou".
+ * O texto de cada item NÃO é reescrito: "A ou B" continua "A ou B", porque dividir mudaria o sentido do plano.
+ */
+export function parseBlocks(lines) {
+  const blocks = [];
+  let items = null;
+  let prep = null;
+  let last = null;
+  const reset = () => { items = null; prep = null; last = null; };
+
+  for (const raw of lines) {
+    const line = String(raw).trim();
+    if (!line) { items = null; last = null; continue; }
+
+    if (BULLET.test(line)) {
+      if (!items) { items = { type: "items", items: [] }; blocks.push(items); }
+      last = { raw: line.replace(BULLET, "").trim() };
+      items.items.push(last);
+      prep = null;
+    } else if (/^ou$/i.test(line)) {
+      blocks.push({ type: "or" }); reset();
+    } else if (QUOTED_TITLE.test(line)) {
+      prep = { type: "prep", title: line.replace(/^["“”„]\s*|\s*["“”]$/g, "").trim(), how: "" };
+      blocks.push(prep); items = null; last = null;
+    } else if (/^modo de preparo\s*:?/i.test(line)) {
+      if (!prep) { prep = { type: "prep", title: "", how: "" }; blocks.push(prep); }
+      prep.how = line.replace(/^modo de preparo\s*:?\s*/i, "");
+      items = null; last = null;
+    } else if (/^\*/.test(line)) {
+      blocks.push({ type: "note", text: line.replace(/^\*+\s*/, "") }); reset();
+    } else if (isUppercaseHeading(line)) {
+      blocks.push({ type: "heading", text: line }); reset();
+    } else if (prep && prep.how) {
+      prep.how += ` ${line}`; // o modo de preparo continua na linha seguinte
+    } else if (last && /^[a-zà-ÿ0-9(]/.test(line)) {
+      last.raw += ` ${line}`; // a linha do item foi quebrada pelo PDF
+    } else {
+      blocks.push({ type: "note", text: line }); reset();
+    }
+  }
+  return blocks;
+}
+
+/** O plano de uma refeição pronto para exibir: horário, parte principal e substituições, cada uma em blocos. */
+export function parseMealPlan(text) {
+  const { main, subs } = splitPlan(text);
+  const timeMatch = /^Horário:\s*(\d{1,2}:\d{2})\s*$/m.exec(main);
+  const mainLines = main.split("\n").filter((l) => !/^Horário:/.test(l.trim()));
+  return {
+    time: timeMatch ? timeMatch[1] : null,
+    main: parseBlocks(mainLines),
+    subs: subs.map((s) => ({ title: s.title, blocks: parseBlocks(s.body.split("\n")) })),
+  };
+}
+
 /** Carrega o pdf.js do CDN, só quando alguém anexa um PDF. O trabalhador roda a partir de um blob, porque o navegador exige a mesma origem. */
 export async function loadPdfjs() {
   const base = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build`;

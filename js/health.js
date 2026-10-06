@@ -2,6 +2,7 @@
 import { esc } from "./dom.js";
 import { entriesOf, kcalBudget, mealKcal } from "./nutrition.js";
 import { mealFoodsHtml, num } from "./nutriview.js";
+import { parseMealPlan } from "./dietplan.js";
 import {
   SLOTS, UNITS, doseHistory, activeMeds, activeMeals, activeDietPlan, todayDoses, intervalStatus, medAdherence, medDay,
   dietAdherence, dietDay, dayKey, startOfWeek,
@@ -172,6 +173,7 @@ export function renderDietView(state, now, editing) {
   const options = [["ok", "Segui"], ["parcial", "Em parte"], ["fora", "Fora"]];
 
   const hideNumbers = state.nutrition?.hideNumbers === true;
+  const storedPlan = activeDietPlan(state);
   const todayHtml = meals.map((m) => { const mealEntries = entriesOf(state, today).filter((e) => e.mealId === m.id); return `
     <section class="meal">
       <h3>${esc(m.name)}${mealEntries.length && !hideNumbers ? ` <span class="meal-kcal">${num(mealKcal(mealEntries))} kcal</span>` : ""}</h3>
@@ -180,7 +182,7 @@ export function renderDietView(state, now, editing) {
       </div>
       ${mealFoodsHtml(mealEntries, hideNumbers, today)}
       <button type="button" class="switch" data-action="food-add" data-meal="${esc(m.id)}" data-day="${today}">+ Adicionar alimento</button>
-      ${m.text ? `<details class="meal-details"><summary>Ver o plano desta refeição</summary><p class="meal-text">${mealTextHtml(m.text)}</p></details>` : ""}
+      ${m.text ? mealPlanHtml(m.text) : storedPlan ? `<p class="small plan-hint">Esta refeição ainda não tem o texto do plano. <button type="button" class="switch" data-action="plan-reread">Preencher a partir do PDF</button></p>` : ""}
     </section>`; }).join("");
 
   const strip = renderStrip(now, (key) => {
@@ -206,6 +208,7 @@ export function renderDietView(state, now, editing) {
         <div><strong>${esc(plan.name)}</strong><p class="small" style="margin:.125rem 0 0">${formatSize(plan.size)} · anexado em ${fmtDay(dayKey(new Date(plan.at)))}</p></div>
         <span class="row-actions">
           <button type="button" class="switch" data-action="plan-open">Abrir</button>
+          <button type="button" class="switch" data-action="plan-reread">Reler o texto</button>
           <label class="switch file-link">Trocar<input type="file" accept="application/pdf,.pdf" data-action="plan-file" hidden></label>
           <button type="button" class="switch danger" data-action="plan-remove">Remover</button>
         </span>
@@ -218,6 +221,7 @@ export function renderDietView(state, now, editing) {
     : `
       ${meals.length ? `<h2 class="section">Hoje</h2>
       <button type="button" class="switch" data-action="go" data-view="nutri">Ver nutrientes do dia</button>
+      ${meals.some((m) => m.text) ? `<button type="button" class="switch" data-action="go" data-view="plano">Ver plano completo</button>` : ""}
       ${budgetBanner(state, now, today)}${todayHtml}
       <h2 class="section">Adesão</h2>${stats(a7, a30, "Segui vale 100%, em parte 50% e fora 0%. Dias sem marcação contam como 0%. O dia de hoje só entra depois da primeira marcação.")}${strip}` : ""}
       <h2 class="section">Nutrientes</h2>
@@ -303,25 +307,86 @@ function planReview(editing) {
       ${meals.length ? `<p class="small" style="margin:0 0 .75rem">Encontrei estas refeições. Confira o texto de cada uma e corrija o que precisar: ele aparece na hora de marcar a refeição do dia.</p>
       ${meals.map((m, i) => `
         <fieldset class="review-meal">
-          <label class="review-name"><input type="checkbox" name="meal" value="${i}" checked> <strong>${esc(m.name)}</strong></label>
+          <label class="review-name"><input type="checkbox" name="meal" value="${i}" ${m.checked === false ? "" : "checked"}> <strong>${esc(m.name)}</strong>${m.existingId ? ` <span class="tag">${m.current ? "Já cadastrada" : "Sem texto"}</span>` : ""}</label>
+          ${m.existingId ? `<p class="small" style="margin:0">${m.current ? "Já tem texto. Marque para substituir pelo que está no PDF." : "Está sem o texto do plano. Marque para preencher com o que está no PDF."}</p>` : ""}
           <textarea name="text-${i}" rows="7" maxlength="4000" aria-label="Texto de ${esc(m.name)}">${esc(m.text)}</textarea>
         </fieldset>`).join("")}` : `<p>${editing.skipped?.length ? "As refeições do PDF já estão cadastradas." : "Não encontrei os nomes das refeições nesse PDF. Você pode guardar o arquivo e adicionar as refeições à mão."}</p>`}
       ${editing.note ? `<p class="small">${esc(editing.note)}</p>` : ""}
-      <fieldset class="choice">
+      ${editing.stored ? `<p class="small">O PDF já está guardado na sua conta.</p>` : `<fieldset class="choice">
         <label><input type="checkbox" name="store" ${editing.canStore ? "checked" : "disabled"}> Guardar o PDF na minha conta</label>
         <p class="small" style="margin:0">${editing.canStore ? "Só você acessa o arquivo. Ele pode ter dados pessoais, como o nome do profissional. Dá para remover quando quiser." : "Entre na sua conta para guardar o arquivo."}</p>
-      </fieldset>
+      </fieldset>`}
       <p class="login-msg" role="status">${esc(editing.error ?? "")}</p>
       <button class="cta" type="submit">Confirmar</button>
       <button class="cta ghost" type="button" data-action="plan-cancel">Cancelar</button>
     </form>`;
 }
 
-/** Texto da refeição com os títulos "Substituição N" em destaque. */
-function mealTextHtml(text) {
-  return String(text).split("\n")
-    .map((line) => (/^Substitui[cç][aã]o\s*\d+$/i.test(line.trim()) ? `<strong class="subst">${esc(line.trim())}</strong>` : esc(line)))
-    .join("\n");
+/** Um item do plano com o texto exatamente como está escrito: o "ou" e as quantidades ganham destaque, nada é reescrito. */
+function itemHtml(raw) {
+  return esc(raw)
+    .replace(/\s+ou\s+/gi, ' <span class="dbox-or">ou</span> ')
+    .replace(/\(([^()]*\d[^()]*)\)/g, '<span class="dbox-qty">$1</span>');
+}
+
+function blockHtml(b) {
+  if (b.type === "items") return `<ul class="dbox-items">${b.items.map((i) => `<li>${itemHtml(i.raw)}</li>`).join("")}</ul>`;
+  if (b.type === "prep") {
+    return `<div class="dbox-prep">${b.title ? `<strong>${esc(b.title)}</strong>` : ""}${b.how ? `<p>${esc(b.how)}</p>` : ""}</div>`;
+  }
+  if (b.type === "or") return `<p class="dbox-ou" aria-hidden="true">ou</p>`;
+  if (b.type === "heading") return `<p class="dbox-heading">${esc(b.text)}</p>`;
+  return `<p class="dbox-note">${esc(b.text)}</p>`;
+}
+
+/**
+ * Os blocos de uma parte do plano. No modo compacto (cartão do dia) só os itens aparecem; receitas e observações
+ * ficam recolhidas, para o cartão não virar uma página.
+ */
+function blocksHtml(blocks, compact) {
+  const shown = compact ? blocks.filter((b) => b.type === "items") : blocks;
+  const hidden = compact ? blocks.filter((b) => b.type !== "items" && b.type !== "or") : [];
+  return `${shown.map(blockHtml).join("")}${hidden.length ? `<details class="meal-details"><summary>Receitas e observações (${hidden.length})</summary>${hidden.map(blockHtml).join("")}</details>` : ""}`;
+}
+
+/**
+ * O plano de uma refeição, montado a partir do texto lido do PDF: o que comer à vista e as substituições em cartões.
+ * `compact`: usado no cartão do dia (substituições recolhidas). Sem compact: a tela completa, tudo aberto.
+ */
+export function mealPlanHtml(text, { compact = true } = {}) {
+  const plan = parseMealPlan(text);
+  // Sem itens com hífen nem substituições, o texto não é um plano estruturado: mostra inteiro, como foi lido.
+  const structured = plan.main.some((b) => b.type === "items") || plan.subs.length > 0;
+  if (!structured) return `<p class="meal-text">${esc(text)}</p>`;
+  const subs = plan.subs.map((s, i) => `
+    <div class="dbox-sub"><div class="dbox-sub-title"><span>Substituição ${i + 1}</span></div>${blocksHtml(s.blocks, false)}</div>`).join("");
+  return `<div class="meal-plan dbox">
+    ${blocksHtml(plan.main, compact)}
+    ${plan.subs.length ? (compact
+      ? `<details class="meal-details"><summary>Substituições (${plan.subs.length})</summary>${subs}</details>`
+      : `<h3 class="dbox-subs-h">Substituições</h3>${subs}`) : ""}
+  </div>`;
+}
+
+/** Tela "Meu plano": o plano alimentar completo, refeição por refeição, como em um app de nutricionista. */
+export function renderPlanView(state) {
+  const meals = activeMeals(state).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).filter((m) => m.text);
+  const section = (m) => {
+    const time = parseMealPlan(m.text).time;
+    return `<section class="dbox-meal">
+      <header class="dbox-head"><h2>${esc(m.name)}</h2>${time ? `<span class="dbox-time">${esc(time)}</span>` : ""}</header>
+      ${mealPlanHtml(m.text, { compact: false })}
+    </section>`;
+  };
+  return `
+    <div class="bar"><button class="back" data-action="go" data-view="diet">‹ Dieta</button><span></span></div>
+    <h1 class="display">Meu plano</h1>
+    ${meals.length ? `<p class="small" style="margin:0.5rem 0 0">Montado a partir do PDF do seu plano alimentar. Toque numa refeição em Dieta para marcar como foi.</p>${meals.map(section).join("")}` : `
+      <p class="lede">Nenhuma refeição tem o texto do plano ainda.</p>
+      <p class="small">Em Dieta, anexe o PDF do plano para o app ler o que comer em cada refeição.</p>
+      <button class="cta" type="button" data-action="go" data-view="diet">Ir para a Dieta</button>`}
+    <p class="disclaimer" role="note"><strong>Importante:</strong> este plano foi lido automaticamente do seu PDF e pode ter erros. Confira com o arquivo original e siga a orientação de quem fez o plano.</p>
+  `;
 }
 // ---------- Avisos na home ----------
 

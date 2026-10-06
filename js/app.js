@@ -16,7 +16,7 @@ import { loadPdfjs, extractLayout, mealsFromLayout, validatePdf } from "./dietpl
 import { renderOnboarding, freshOnboarding, prevStep, nextStep } from "./onboardingview.js";
 import { GOALS, DISCLAIMER, SOURCES, EVIDENCE_LIMIT, buildProfile, skippedProfile, needsOnboarding, cleanName, greeting } from "./onboarding.js";
 import {
-  renderMedsView, renderDietView, healthNotices, habitCards, renderMedsHabit, renderHormonesHabit, renderDietHabit,
+  renderMedsView, renderDietView, renderPlanView, healthNotices, habitCards, renderMedsHabit, renderHormonesHabit, renderDietHabit,
 } from "./health.js";
 import { GOOGLE_LOGIN } from "./config.js";
 
@@ -46,6 +46,34 @@ async function loadTaco() {
 }
 
 let pendingPlan = null; // PDF escolhido, à espera da confirmação do usuário
+
+/** Lê o PDF e abre a revisão. Refeições que já existem entram na lista, para preencher ou trocar o texto delas. */
+async function readPlan(file, { stored = false } = {}) {
+  pendingPlan = { file, stored };
+  editing = { type: "plan", loading: true };
+  render(); window.scrollTo(0, 0);
+  let found = [];
+  let note = "";
+  try {
+    const items = await extractLayout(new Uint8Array(await file.arrayBuffer()), await loadPdfjs());
+    found = mealsFromLayout(items);
+    if (!items.length) note = "Esse PDF não tem texto que dê para ler (pode ser uma foto). Guarde o arquivo e cadastre as refeições à mão.";
+    else if (!found.length) note = "Li o texto do PDF, mas não encontrei os nomes das refeições (café da manhã, almoço, jantar...). Você pode cadastrá-las à mão.";
+  } catch (err) {
+    console.warn("Não foi possível ler o PDF.", err);
+    note = "Não consegui ler o PDF agora. Você ainda pode guardar o arquivo e cadastrar as refeições à mão.";
+  }
+  const have = new Map(activeMeals(state).map((m) => [m.name.toLowerCase(), m]));
+  editing = {
+    type: "plan", note, stored, canStore: sync.signedIn() && !stored,
+    meals: found.map((m) => {
+      const existing = have.get(m.name.toLowerCase());
+      // Refeição nova vem marcada. Já cadastrada vem marcada só se estiver sem texto (nada a perder).
+      return { ...m, existingId: existing?.id ?? null, current: existing?.text ?? "", checked: !existing || !existing.text };
+    }),
+  };
+  render();
+}
 let onb = null; // respostas do onboarding em andamento
 let tourStep = 0;
 let tourFrom = "app"; // "login": o tour foi aberto antes de entrar na conta, e termina de volta no login
@@ -560,6 +588,7 @@ function render() {
   else if (view === "habit") renderHabit();
   else if (view === "weight") renderWeight();
   else if (view === "treino") renderTreino();
+  else if (view === "plano") app.innerHTML = renderPlanView(state);
   else if (view === "nutri") app.innerHTML = renderNutri(state, new Date(), nutriDay ?? todayKey(), todayKey());
   else if (view === "nutri-setup") app.innerHTML = renderNutriSetup(state, new Date(), setupDraft?.values ?? null, setupDraft?.errors ?? []);
   else if (view === "food" && foodCtx) app.innerHTML = renderFood(state, foodCtx, allFoods(), !tacoFoods && !foodCtx.loadError);
@@ -763,6 +792,15 @@ app.addEventListener("click", (e) => {
       persist();
       { const y = window.scrollY; render(); window.scrollTo(0, y); }
       break;
+    case "plan-reread": {
+      const plan = activeDietPlan(state);
+      if (!plan) break;
+      view = "diet"; editing = { type: "plan", loading: true }; render(); window.scrollTo(0, 0);
+      sync.downloadPlan(plan.path)
+        .then((blob) => readPlan(new File([blob], plan.name, { type: "application/pdf" }), { stored: true }))
+        .catch(() => { editing = null; render(); alert("Não foi possível baixar o PDF agora. Anexe o arquivo de novo em Trocar."); });
+      break;
+    }
     case "plan-cancel": pendingPlan = null; editing = null; render(); break;
     case "plan-open": {
       const plan = activeDietPlan(state);
@@ -981,14 +1019,17 @@ app.addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(planForm);
   // Cada refeição marcada vai com o texto como ficou na revisão, já corrigido pela pessoa se ela quis.
-  const chosen = fd.getAll("meal").map((i) => ({ name: editing.meals[Number(i)].name, text: String(fd.get(`text-${i}`) ?? "") }));
-  const store = fd.get("store") === "on" && pendingPlan?.file;
+  const chosen = fd.getAll("meal").map((i) => ({ name: editing.meals[Number(i)].name, existingId: editing.meals[Number(i)].existingId, text: String(fd.get(`text-${i}`) ?? "") }));
+  const store = fd.get("store") === "on" && pendingPlan?.file && !pendingPlan.stored;
   const msg = planForm.querySelector(".login-msg");
   const button = planForm.querySelector('button[type="submit"]');
   button.disabled = true;
   try {
     let next = state;
-    if (chosen.length) next = importMeals(next, chosen, new Date(), newId).state;
+    const now = new Date();
+    for (const c of chosen.filter((x) => x.existingId)) next = saveMeal(next, { name: c.name, text: c.text }, c.existingId, now); // preenche ou troca o texto
+    const created = chosen.filter((x) => !x.existingId);
+    if (created.length) next = importMeals(next, created, now, newId).state;
     if (store) {
       msg.textContent = "Enviando o PDF...";
       const path = await sync.uploadPlan(pendingPlan.file);
@@ -1093,27 +1134,10 @@ app.addEventListener("change", async (e) => {
     e.target.value = ""; // permite escolher o mesmo arquivo de novo
     if (!file) return;
     try { validatePdf(file); } catch (err) { alert(err.message); return; }
-    pendingPlan = { file };
-    editing = { type: "plan", loading: true };
-    render(); window.scrollTo(0, 0);
-    let found = [];
-    let note = "";
-    try {
-      const items = await extractLayout(new Uint8Array(await file.arrayBuffer()), await loadPdfjs());
-      found = mealsFromLayout(items);
-      if (!items.length) note = "Esse PDF não tem texto que dê para ler (pode ser uma foto). Guarde o arquivo e cadastre as refeições à mão.";
-    } catch (err) {
-      console.warn("Não foi possível ler o PDF.", err);
-      note = "Não consegui ler o PDF agora. Você ainda pode guardar o arquivo e cadastrar as refeições à mão.";
-    }
-    const have = new Set(activeMeals(state).map((m) => m.name.toLowerCase()));
-    editing = {
-      type: "plan", note, canStore: sync.signedIn(),
-      meals: found.filter((m) => !have.has(m.name.toLowerCase())), skipped: found.filter((m) => have.has(m.name.toLowerCase())).map((m) => m.name),
-    };
-    render();
+    await readPlan(file);
     return;
-  }  if (e.target.name !== "kind") return;
+  }
+  if (e.target.name !== "kind") return;
   const form = e.target.closest("form");
   const interval = e.target.value === "interval";
   form.querySelector(".kind-daily").hidden = interval;
