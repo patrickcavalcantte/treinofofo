@@ -35,13 +35,20 @@
 <body>
   <header class="site-header">
     <div class="site-header-inner">
-      <a class="brand-link" href="./" aria-label="Treino Fofo: ir para a tela inicial">
-        <img src="assets/logo.png" alt="" width="64" height="64">
-        <span class="wordmark">
-          <span class="wm-treino" aria-hidden="true">Treino</span>
-          <span class="wm-fofo" aria-hidden="true">Fofo</span>
-        </span>
-      </a>
+      <div class="brand-wrap">
+        <a class="brand-link" href="./" aria-label="Treino Fofo: ir para a tela inicial">
+          <img src="assets/logo.png" alt="" width="64" height="64">
+          <span class="wordmark">
+            <span class="wm-treino" aria-hidden="true">Treino</span>
+            <span class="wm-fofo" aria-hidden="true">Fofo</span>
+          </span>
+        </a>
+        <label class="avatar-edit" id="avatar-edit" hidden title="Foto de perfil">
+          <span class="sr-only" id="avatar-edit-text">Adicionar foto de perfil</span>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <input type="file" id="avatar-header-file" accept="image/*" hidden>
+        </label>
+      </div>
     </div>
   </header>
 

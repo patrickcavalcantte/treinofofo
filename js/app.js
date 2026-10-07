@@ -616,7 +616,30 @@ function updateBrand(hide = false) {
   const src = hide || view === "login" || view === "newpassword" ? null : avatarSrc(state);
   img.src = src ?? "assets/logo.png";
   img.classList.toggle("avatar", Boolean(src));
+  // O botão de câmera aparece em todas as telas do app, menos no login.
+  const edit = document.getElementById("avatar-edit");
+  if (edit) {
+    edit.hidden = hide || view === "login" || view === "newpassword";
+    const label = document.getElementById("avatar-edit-text");
+    if (label) label.textContent = src ? "Trocar foto de perfil" : "Adicionar foto de perfil";
+  }
 }
+
+/** Lê a foto escolhida (na home ou no cabeçalho), reduz e guarda. */
+async function chooseAvatar(input) {
+  const file = input.files?.[0];
+  input.value = ""; // permite escolher a mesma foto de novo
+  if (!file) return;
+  try {
+    state = saveAvatar(state, await squareFromFile(file), new Date());
+    persist(); render();
+  } catch (err) {
+    const msg = document.getElementById("avatar-msg");
+    if (msg) msg.textContent = err.message || "Não foi possível usar essa foto. Tente outra.";
+    else alert(err.message || "Não foi possível usar essa foto. Tente outra.");
+  }
+}
+document.getElementById("avatar-header-file")?.addEventListener("change", (e) => chooseAvatar(e.target));
 
 function render() { renderView(); updateBrand(); }
 
@@ -1281,16 +1304,7 @@ app.addEventListener("submit", (e) => {
 
 app.addEventListener("change", async (e) => {
   if (e.target.dataset.action === "avatar-file") {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    try {
-      state = saveAvatar(state, await squareFromFile(file), new Date());
-      persist(); render();
-    } catch (err) {
-      const msg = document.getElementById("avatar-msg");
-      if (msg) msg.textContent = err.message || "Não foi possível usar essa foto. Tente outra.";
-    }
+    await chooseAvatar(e.target);
     return;
   }
   if (e.target.dataset.action === "plan-file") {
