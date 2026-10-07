@@ -8,7 +8,7 @@ export function emptyState() {
   return { version: STATE_VERSION, history: [], levels: {}, draft: null, marks: [], weights: [],
     meds: [], medLog: {}, meals: [], dietLog: {}, profile: null, dietPlan: null,
     nutrition: null, foodLog: {}, customFoods: [], tour: null, waterLog: {}, hydration: null,
-    activityLog: {}, favActivities: [], activityPrefs: null };
+    activityLog: {}, favActivities: [], activityPrefs: null, checkins: {}, avatar: null };
 }
 
 // ---------- Datas ----------
@@ -507,6 +507,13 @@ function latestAt(a, b) {
   return (a.at ?? "") >= (b.at ?? "") ? a : b;
 }
 
+/** Check-ins por dia; se os dois aparelhos fizeram, vale o mais recente. */
+function mergeCheckins(a = {}, b = {}) {
+  const out = {};
+  for (const day of new Set([...Object.keys(a), ...Object.keys(b)])) out[day] = latestBy(a[day], b[day]);
+  return out;
+}
+
 function mergeWeights(a = [], b = []) {
   const byWeek = new Map();
   for (const w of [...b, ...a]) {
@@ -535,6 +542,8 @@ export function mergeStates(a, b) {
     activityLog: mergeDays(a.activityLog, b.activityLog),
     favActivities: mergeById(a.favActivities, b.favActivities),
     activityPrefs: latestBy(a.activityPrefs, b.activityPrefs),
+    checkins: mergeCheckins(a.checkins, b.checkins),
+    avatar: latestBy(a.avatar, b.avatar),
     customFoods: mergeById(a.customFoods, b.customFoods),
     foodLog: mergeDays(a.foodLog, b.foodLog),
     meds: mergeById(a.meds, b.meds),

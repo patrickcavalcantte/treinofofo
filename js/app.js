@@ -15,6 +15,8 @@ import { renderActivities, renderActivityResults, activityCard, activityPreview 
 import {
   parseActivities, findActivity, addActivity, removeActivity, addFavorite, removeFavorite, saveActivityPrefs, activityPrefs, favoriteList,
 } from "./activities.js";
+import { renderCheckin, doCheckin } from "./checkin.js";
+import { saveAvatar, removeAvatar, avatarSrc, squareFromFile } from "./avatar.js";
 import { renderTour, needsTour, finishTour } from "./tour.js";
 import { renderNutri, renderNutriSetup, renderFood, renderFoodResults, foodPreview } from "./nutriview.js";
 import { saveNutrition, dailyTargets, addFoodEntry, removeFoodEntry, saveCustomFood, activeCustomFoods, parseTaco, parseMarcas, latestWeightKg, unitOf } from "./nutrition.js";
@@ -207,6 +209,7 @@ function renderHome() {
     <p class="lede" style="text-transform:capitalize">${esc(today)}</p>
 
     ${healthNotices(state, now, { hormonesOnly: true })}
+    ${renderCheckin(state, now)}
 
     <div class="home-cards">
       ${treino}
@@ -222,6 +225,8 @@ function renderHome() {
 
     ${state.profile?.goal ? `<p class="small account">Objetivo: ${esc(GOALS[state.profile.goal].label)} · ${goal} treinos por semana. <button class="switch" data-action="onb-restart">Refazer</button></p>` : `<p class="small account"><button class="switch" data-action="onb-restart">Receber uma sugestão de treino</button></p>`}
     <p class="small account"><button class="switch" data-action="tour-start">Ver o tour do app</button></p>
+    <p class="small account">Foto de perfil: <label class="switch file-link">${avatarSrc(state) ? "Trocar" : "Escolher foto"}<input type="file" accept="image/*" data-action="avatar-file" hidden></label>${avatarSrc(state) ? ` · <button class="switch" data-action="avatar-remove">Remover</button>` : ""}</p>
+    <p class="small" id="avatar-msg" role="status"></p>
     ${sync.signedIn() ? `<p class="account small">Sincronizado como ${esc(sync.email())} · <button class="switch" data-action="signout">Sair</button></p>` : ""}
   `;
 }
@@ -266,6 +271,7 @@ function renderForgot(message = "", { email = "", sent = false } = {}) {
 }
 
 function renderNewPassword(message = "") {
+  updateBrand(true);
   app.innerHTML = `
     <h1 class="display">Nova senha</h1>
     <p class="lede">Escolha uma senha nova, com pelo menos 8 caracteres.</p>
@@ -278,6 +284,7 @@ function renderNewPassword(message = "") {
 }
 
 function renderLogin(message = "", { email = "", sent = false } = {}) {
+  updateBrand(true);
   if (sent) {
     app.innerHTML = `
       <h1 class="display">Confira seu e-mail</h1>
@@ -602,7 +609,18 @@ function renderGuide() {
   `;
 }
 
-function render() {
+/** Cabeçalho: a foto da pessoa no lugar do logo (menos no login, que pode estar num aparelho de outra pessoa). */
+function updateBrand(hide = false) {
+  const img = document.querySelector(".brand-link img");
+  if (!img) return;
+  const src = hide || view === "login" || view === "newpassword" ? null : avatarSrc(state);
+  img.src = src ?? "assets/logo.png";
+  img.classList.toggle("avatar", Boolean(src));
+}
+
+function render() { renderView(); updateBrand(); }
+
+function renderView() {
   if (view === "login") renderLogin();
   else if (view === "onboarding") app.innerHTML = renderOnboarding(onb);
   else if (view === "tour") app.innerHTML = renderTour(tourStep);
@@ -833,6 +851,14 @@ app.addEventListener("click", (e) => {
       { const y = window.scrollY; render(); window.scrollTo(0, y); }
       break;
     }
+    case "avatar-remove":
+      state = removeAvatar(state, new Date());
+      persist(); render();
+      break;
+    case "checkin-done":
+      state = doCheckin(state, todayKey(), new Date());
+      persist(); render();
+      break;
     case "act-pick": {
       const a = findActivity(activitiesData, t.dataset.code, t.dataset.table);
       if (a) { actCtx.selected = { ...a, label: t.dataset.label || a.pt }; actCtx.error = null; actCtx.minutes = ""; actCtx.alias = ""; }
@@ -1254,6 +1280,19 @@ app.addEventListener("submit", (e) => {
 });
 
 app.addEventListener("change", async (e) => {
+  if (e.target.dataset.action === "avatar-file") {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      state = saveAvatar(state, await squareFromFile(file), new Date());
+      persist(); render();
+    } catch (err) {
+      const msg = document.getElementById("avatar-msg");
+      if (msg) msg.textContent = err.message || "Não foi possível usar essa foto. Tente outra.";
+    }
+    return;
+  }
   if (e.target.dataset.action === "plan-file") {
     const file = e.target.files?.[0];
     e.target.value = ""; // permite escolher o mesmo arquivo de novo
