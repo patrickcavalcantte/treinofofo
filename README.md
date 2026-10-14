@@ -24,6 +24,22 @@ Suba a pasta para um repositÃ³rio e importe na Vercel. Framework preset: **Oth
 
 Os dados ficam no `localStorage` do navegador. Trocar de celular ou limpar dados do site apaga o histÃ³rico.
 
+## Privacidade e banco de dados
+
+O app guarda dado de saúde (dado pessoal sensível na LGPD). No Supabase, rode uma vez cada arquivo em `supabase/`:
+
+- `schema.sql`: tabela `app_state` com RLS (cada conta só enxerga a própria linha).
+- `storage.sql`: bucket privado `planos` para o PDF do plano alimentar.
+- `excluir-conta.sql`: função `delete_my_account`, usada pelo botão "Excluir minha conta e meus dados".
+
+Teste de isolamento entre contas, com duas contas **descartáveis** (grava uma linha de teste na conta A):
+
+```bash
+TEST_A_EMAIL=... TEST_A_PASS=... TEST_B_EMAIL=... TEST_B_PASS=... npm run test:rls
+```
+
+O texto da política fica em `js/privacy.js`; mude `PRIVACY_VERSION` quando ele mudar de forma relevante.
+
 ## CrÃ©ditos
 
 Imagens do [free-exercise-db](https://github.com/yuhonas/free-exercise-db), publicado sob a licenÃ§a Unlicense.
