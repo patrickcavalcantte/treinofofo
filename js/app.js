@@ -27,6 +27,7 @@ import {
   renderMedsView, renderDietView, renderPlanView, healthNotices, habitCards, renderMedsHabit, renderHormonesHabit, renderDietHabit,
 } from "./health.js";
 import { GOOGLE_LOGIN } from "./config.js";
+import { watchForUpdates } from "./update.js";
 
 const app = document.getElementById("app");
 const store = createStore(safeLocalStorage());
@@ -1390,3 +1391,4 @@ initChat(() => {
 });
 
 boot();
+watchForUpdates();
