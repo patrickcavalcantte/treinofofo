@@ -6,7 +6,8 @@
   "description": "App de treino de membros superiores com halteres leves, sem banco.",
   "scripts": {
     "test": "node --test \"tests/*.test.js\"",
-    "dev": "npx --yes serve ."
+    "dev": "npx --yes serve .",
+    "test:rls": "node supabase/teste-rls.mjs"
   },
   "engines": { "node": ">=18" }
 }

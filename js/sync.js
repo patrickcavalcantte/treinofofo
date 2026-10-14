@@ -22,6 +22,7 @@ async function getClient() {
 }
 
 export const email = () => user?.email ?? null;
+export const userId = () => user?.id ?? null;
 export const signedIn = () => user !== null;
 
 /** Restaura a sessão salva neste aparelho. Devolve o usuário ou null. */
@@ -99,9 +100,9 @@ export async function signInWithGoogle() {
 }
 
 /** Devolve true se o Supabase pediu confirmação por e-mail antes do primeiro login. */
-export async function signUp(emailAddr, password) {
+export async function signUp(emailAddr, password, meta = {}) {
   const c = await getClient();
-  const { data, error } = await c.auth.signUp({ email: emailAddr, password });
+  const { data, error } = await c.auth.signUp({ email: emailAddr, password, options: { data: meta } });
   if (error) throw error;
   user = data.session?.user ?? null;
   return data.session === null;
@@ -116,7 +117,7 @@ export async function signOut() {
 
 export async function pull() {
   const c = await getClient();
-  const { data, error } = await c.from("app_state").select("state").maybeSingle();
+  const { data, error } = await c.from("app_state").select("state").eq("user_id", user.id).maybeSingle();
   if (error) throw error;
   return data?.state ?? null;
 }
@@ -132,4 +133,19 @@ export function schedulePush(state, onError) {
   if (!user) return;
   clearTimeout(timer);
   timer = setTimeout(() => push(state).catch(onError), 1000);
+}
+
+/**
+ * Apaga a conta e tudo dela: o PDF no Storage (o banco não apaga arquivos em cascata) e,
+ * pela função delete_my_account (supabase/excluir-conta.sql), o usuário e a linha de app_state.
+ */
+export async function deleteAccount() {
+  const c = await getClient();
+  const { error: fileError } = await c.storage.from(BUCKET).remove([`${user.id}/dieta.pdf`]);
+  if (fileError) throw fileError;
+  clearTimeout(timer);
+  const { error } = await c.rpc("delete_my_account");
+  if (error) throw error;
+  await c.auth.signOut().catch(() => {});
+  user = null;
 }

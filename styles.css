@@ -831,3 +831,5 @@ h3.slot { font-family: var(--wide); font-stretch: 112%; font-size: 1rem; color: 
 
 .update-banner { position: fixed; left: 1rem; right: 1rem; bottom: 1rem; z-index: 50; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; background: var(--ink); color: var(--paper); border-radius: 0.75rem; padding: 0.75rem 1rem; font-size: 0.9375rem; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
 .update-banner .switch { color: inherit; font-weight: 800; text-decoration: underline; }
+.consent { display: flex; gap: 0.5rem; align-items: flex-start; margin: 0.75rem 0 0; line-height: 1.4; }
+.consent input { margin-top: 0.2rem; flex: none; width: 1.25rem; height: 1.25rem; }

@@ -28,6 +28,8 @@ import {
 } from "./health.js";
 import { GOOGLE_LOGIN } from "./config.js";
 import { watchForUpdates } from "./update.js";
+import { emptyState, hasUserData } from "./logic.js";
+import { renderPrivacy, CONSENT_LABEL, CONSENT_ERROR, PRIVACY_VERSION } from "./privacy.js";
 
 const app = document.getElementById("app");
 const store = createStore(safeLocalStorage());
@@ -228,7 +230,9 @@ function renderHome() {
     <p class="small account"><button class="switch" data-action="tour-start">Ver o tour do app</button></p>
     <p class="small account">Foto de perfil: <label class="switch file-link">${avatarSrc(state) ? "Trocar" : "Escolher foto"}<input type="file" accept="image/*" data-action="avatar-file" hidden></label>${avatarSrc(state) ? ` · <button class="switch" data-action="avatar-remove">Remover</button>` : ""}</p>
     <p class="small" id="avatar-msg" role="status"></p>
-    ${sync.signedIn() ? `<p class="account small">Sincronizado como ${esc(sync.email())} · <button class="switch" data-action="signout">Sair</button></p>` : ""}
+    ${sync.signedIn() ? `<p class="account small">Sincronizado como ${esc(sync.email())} · <button class="switch" data-action="signout">Sair</button></p>
+    <p class="account small"><button class="switch" data-action="privacy">Política de Privacidade</button> · <button class="switch" data-action="delete-account">Excluir minha conta e meus dados</button></p>
+    <p class="small" id="account-msg" role="status"></p>` : `<p class="account small"><button class="switch" data-action="privacy">Política de Privacidade</button></p>`}
   `;
 }
 function passwordField(name, autocomplete, label) {
@@ -309,6 +313,7 @@ function renderLogin(message = "", { email = "", sent = false } = {}) {
         <input name="email" type="email" autocomplete="email" inputmode="email" value="${esc(email)}" required>
       </label>
       ${passwordField("password", "current-password", "Senha")}
+      <label class="consent small"><input type="checkbox" name="consent"> <span>${esc(CONSENT_LABEL)} <button type="button" class="switch" data-action="privacy">Ler a política</button></span></label>
       <p class="login-msg" role="status">${esc(message)}</p>
       <button class="switch forgot" type="button" data-action="forgot">Esqueci minha senha</button>
       <button class="cta" type="submit" name="mode" value="signin">Entrar</button>
@@ -649,6 +654,7 @@ function renderView() {
   else if (view === "onboarding") app.innerHTML = renderOnboarding(onb);
   else if (view === "tour") app.innerHTML = renderTour(tourStep);
   else if (view === "newpassword") renderNewPassword();
+  else if (view === "privacy") app.innerHTML = renderPrivacy("privacy-back");
   else if (view === "workout" && state.draft) renderWorkout();
   else if (view === "guide") renderGuide();
   else if (view === "habit") renderHabit();
@@ -797,7 +803,18 @@ app.addEventListener("click", (e) => {
       sync.signInWithGoogle().catch((err) => renderLogin(err.message));
       break;
     case "signout":
-      sync.signOut().finally(() => { view = "login"; render(); });
+      signOutAndClear();
+      break;
+    case "privacy":
+      privacyFrom = view;
+      view = "privacy"; render(); window.scrollTo(0, 0);
+      break;
+    case "privacy-back":
+      view = privacyFrom === "privacy" ? "home" : privacyFrom;
+      render(); window.scrollTo(0, 0);
+      break;
+    case "delete-account":
+      deleteAccount();
       break;
     case "mark":
       state = toggleMark(state, t.dataset.day);
@@ -1097,9 +1114,57 @@ document.querySelector(".brand-link")?.addEventListener("click", (e) => {
 
 // ---------- Conta e sincronização ----------
 
-// Junta o que está neste aparelho com o que está no Supabase e grava o resultado nos dois lados.
-async function reconcile() {
+const OWNER_KEY = "treino-casa:owner";
+let privacyFrom = "login";
+
+/**
+ * De quem são os dados deste aparelho? Uma marca guarda a conta dona. Se for outra, descartamos.
+ * Sem marca (uso anterior ao login) e num login explícito, perguntamos antes de juntar com a conta.
+ */
+function settleLocalOwnership(askAdopt) {
+  const id = sync.userId();
+  if (!id) return;
   try {
+    const owner = localStorage.getItem(OWNER_KEY);
+    if (owner && owner !== id) {
+      state = emptyState();
+      store.save(state);
+    } else if (!owner && askAdopt && hasUserData(state)) {
+      const join = confirm(
+        `Este aparelho já tem dados salvos de antes do login.\n\nOK: juntar esses dados com a conta ${sync.email()}.\nCancelar: começar esta conta do zero (os dados deste aparelho serão apagados daqui).`,
+      );
+      if (!join) {
+        state = emptyState();
+        store.save(state);
+      }
+    }
+    localStorage.setItem(OWNER_KEY, id);
+  } catch { /* sem storage: segue sem a marca */ }
+}
+
+/** Exclui a conta e os dados dela, depois de confirmar. */
+async function deleteAccount() {
+  const msg = document.getElementById("account-msg");
+  if (!confirm("Excluir sua conta e todos os seus dados (treinos, peso, remédios, refeições, plano alimentar)?\n\nIsso não pode ser desfeito.")) return;
+  if (msg) msg.textContent = "Excluindo…";
+  try {
+    await sync.deleteAccount();
+  } catch (err) {
+    console.warn("Não foi possível excluir a conta agora.", err);
+    if (msg) msg.textContent = "Não foi possível excluir agora. Tente de novo em instantes.";
+    return;
+  }
+  state = emptyState();
+  store.save(state);
+  try { localStorage.removeItem(OWNER_KEY); } catch { /* ignorado */ }
+  view = "login";
+  renderLogin("Conta excluída. Seus dados foram apagados.");
+}
+
+// Junta o que está neste aparelho com o que está no Supabase e grava o resultado nos dois lados.
+async function reconcile(askAdopt = false) {
+  try {
+    settleLocalOwnership(askAdopt);
     const remote = await sync.pull();
     const merged = mergeStates(state, remote);
     const changedHere = JSON.stringify(merged) !== JSON.stringify(state);
@@ -1113,6 +1178,17 @@ async function reconcile() {
   }
 }
 
+/** Sai da conta e tira os dados dela deste aparelho, para a próxima conta que entrar começar limpa. */
+async function signOutAndClear() {
+  try { await sync.push(state); } catch { /* sem rede: o que não subiu fica só neste aparelho */ }
+  await sync.signOut().catch(() => {});
+  state = emptyState();
+  store.save(state);
+  try { localStorage.removeItem(OWNER_KEY); } catch { /* ignorado */ }
+  view = "login";
+  render();
+}
+
 app.addEventListener("submit", async (e) => {
   const form = e.target.closest("form[data-action='login']");
   if (!form) return;
@@ -1122,14 +1198,15 @@ app.addEventListener("submit", async (e) => {
   const email = String(data.get("email")).trim();
   const password = String(data.get("password"));
   if (!email || password.length < 8) return renderLogin("Informe o e-mail e uma senha de pelo menos 8 caracteres.", { email });
+  if (mode === "signup" && !data.get("consent")) return renderLogin(CONSENT_ERROR, { email });
   try {
     if (mode === "signup") {
-      const needsConfirmation = await sync.signUp(email, password);
+      const needsConfirmation = await sync.signUp(email, password, { consent_at: new Date().toISOString(), consent_version: PRIVACY_VERSION });
       if (needsConfirmation) return renderLogin("", { email, sent: true });
     } else {
       await sync.signIn(email, password);
     }
-    await reconcile();
+    await reconcile(true);
     enterApp();
     render(); window.scrollTo(0, 0);
   } catch (err) {

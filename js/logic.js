@@ -11,6 +11,15 @@ export function emptyState() {
     activityLog: {}, favActivities: [], activityPrefs: null, checkins: {}, avatar: null };
 }
 
+/** Este estado tem algo que a pessoa registrou? (Só ter visto o tour ou aberto o app não conta.) */
+export function hasUserData(state) {
+  const lists = ["history", "marks", "weights", "meds", "meals", "customFoods", "favActivities"];
+  const maps = ["medLog", "dietLog", "foodLog", "waterLog", "activityLog", "checkins", "levels"];
+  return lists.some((k) => state?.[k]?.length > 0)
+    || maps.some((k) => Object.keys(state?.[k] ?? {}).length > 0)
+    || Boolean(state?.profile || state?.dietPlan || state?.nutrition || state?.hydration || state?.avatar || state?.draft);
+}
+
 // ---------- Datas ----------
 
 export function startOfWeek(date) {
